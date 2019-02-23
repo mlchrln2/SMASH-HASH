@@ -27,7 +27,6 @@ def grid(m, dtype=np.float32):
 
 def distance_sklearn_metrics(z, k=4, metric='euclidean'):
     """Compute pairwise distances"""
-    #d = sklearn.metrics.pairwise.pairwise_distances(z, metric=metric, n_jobs=-2)
     d = sklearn.metrics.pairwise.pairwise_distances(z, metric=metric, n_jobs=1)
     # k-NN
     idx = np.argsort(d)[:,1:k+1]
