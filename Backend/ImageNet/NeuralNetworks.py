@@ -55,10 +55,13 @@ class Autoencoder(nn.Module):
             nn.MaxPool2d(2, stride=2),
             nn.Conv2d(16, 8, 3, stride=2, padding=1),
             nn.ReLU(True),
-            nn.MaxPool2d(2, stride=1)
+            nn.MaxPool2d(2, stride=1),
+            nn.Conv2d(8, 4, 3,stride=2,padding=1),
+            nn.ReLU(True)
         )
-        
         self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(4, 8, 1, stride=2),
+            nn.ReLU(True),
             nn.ConvTranspose2d(8, 16, 3, stride=2),
             nn.ReLU(True),
             nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),
@@ -66,14 +69,10 @@ class Autoencoder(nn.Module):
             nn.ConvTranspose2d(8, 3, (2,2), stride=2, padding=1),
             nn.Tanh()
         )
-
-        self.loss_function = nn.MSELoss()
+        self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.LR,
                                           weight_decay=1e-5)
     def forward(self, x):
-    	print(x.size())
-    	x = self.encoder(x)
-    	print(x.size())
-    	x = self.decoder(x)
-    	print(x.size())
-    	return x
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
