@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from hyperparameters import options
+from HyperParameters import options
 
 '''
 General Soft-Attention Model
