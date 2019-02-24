@@ -3,7 +3,20 @@ from coarsening import perm_data
 from coarsening import rescale_L
 import torch
 import torch.nn as nn
+import argparse
 # class definitions
+
+parser = argparse.ArgumentParser(description='Trainer')
+parser.add_argument('--disable-cuda', action='store_true',
+                    help='Disable CUDA')
+args = parser.parse_args()
+args.device = None
+if not args.disable_cuda and torch.cuda.is_available():
+    # args.device = torch.device('cuda')
+    # torch.set_default_tensor_type(torch.cuda.FloatTensor)
+    args.device = torch.device('cpu')
+else:
+    args.device = torch.device('cpu')
 
 class sparse_mm(torch.autograd.Function):
     """
@@ -11,36 +24,66 @@ class sparse_mm(torch.autograd.Function):
     called "sparse_mm", by subclassing torch.autograd.Function 
     and implementing the forward and backward passes.
     """
-    
+    @staticmethod
     def forward(self, W, x):  # W is SPARSE
         self.save_for_backward(W, x)
         y = torch.mm(W, x)
         return y
-    
+
+    @staticmethod
     def backward(self, grad_output):
-        W, x = self.saved_tensors 
+        W, x = self.saved_tensors
         grad_input = grad_output.clone()
-        grad_input_dL_dW = torch.mm(grad_input, x.t()) 
-        grad_input_dL_dx = torch.mm(W.t(), grad_input )
+        grad_input_dL_dW = torch.mm(grad_input, x.t())
+        grad_input_dL_dx = torch.mm(W.t(), grad_input)
         return grad_input_dL_dW, grad_input_dL_dx
+
 
 class Graph_ConvNet_LeNet5(nn.Module):
 
-    def __init__(self, net_parameters):
+    def __init__(self, options):
 
         print('Graph ConvNet: LeNet5')
 
         super(Graph_ConvNet_LeNet5, self).__init__()
 
         # parameters
-        D, CL1_F, CL1_K, CL2_F, CL2_K, FC1_F, FC2_F = net_parameters
+        CL1_F = options['CL1_F']
+        CL1_K = options['CL1_K']
+        CL2_F = options['CL2_F']
+        CL2_K = options['CL2_K']
+        FC1_F = options['FC1_F']
+        FC2_F = options['FC2_F']
+
+
+        # make the graphs
+
+        # Construct graph
+        grid_side = options['grid_side']
+        number_edges = options['number_edges']
+        metric = options['metric']
+        # create graph of Euclidean grid
+        Grid = grid_graph(grid_side, number_edges, metric)
+
+        # Compute coarsened graphs
+        coarsening_levels = options['coarsening']
+        L, perm = coarsen(Grid, coarsening_levels)
+
+        # Compute max eigenvalue of graph Laplacians
+        lmax = []
+        for i in range(coarsening_levels):
+            lmax.append(lmax_L(L[i]))
+        print('lmax: ' + str([lmax[i] for i in range(coarsening_levels)]))
+
+        D = perm
         FC1Fin = CL2_F * (D // 16)
+
 
         # graph CL1
         self.cl1 = nn.Linear(CL1_K, CL1_F)
         Fin = CL1_K
         Fout = CL1_F
-        scale = np.sqrt(2.0 / (Fin + Fout))
+        scale = torch.sqrt(2.0 / (Fin + Fout))
         self.cl1.weight.data.uniform_(-scale, scale)
         self.cl1.bias.data.fill_(0.0)
         self.CL1_K = CL1_K
@@ -50,7 +93,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
         self.cl2 = nn.Linear(CL2_K * CL1_F, CL2_F)
         Fin = CL2_K * CL1_F
         Fout = CL2_F
-        scale = np.sqrt(2.0 / (Fin + Fout))
+        scale = torch.sqrt(2.0 / (Fin + Fout))
         self.cl2.weight.data.uniform_(-scale, scale)
         self.cl2.bias.data.fill_(0.0)
         self.CL2_K = CL2_K
@@ -60,7 +103,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
         self.fc1 = nn.Linear(FC1Fin, FC1_F)
         Fin = FC1Fin
         Fout = FC1_F
-        scale = np.sqrt(2.0 / (Fin + Fout))
+        scale = torch.sqrt(2.0 / (Fin + Fout))
         self.fc1.weight.data.uniform_(-scale, scale)
         self.fc1.bias.data.fill_(0.0)
         self.FC1Fin = FC1Fin
@@ -69,7 +112,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
         self.fc2 = nn.Linear(FC1_F, FC2_F)
         Fin = FC1_F
         Fout = FC2_F
-        scale = np.sqrt(2.0 / (Fin + Fout))
+        scale = torch.sqrt(2.0 / (Fin + Fout))
         self.fc2.weight.data.uniform_(-scale, scale)
         self.fc2.bias.data.fill_(0.0)
 
@@ -82,7 +125,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
 
     def init_weights(self, W, Fin, Fout):
 
-        scale = np.sqrt(2.0 / (Fin + Fout))
+        scale = torch.sqrt(2.0 / (Fin + Fout))
         W.uniform_(-scale, scale)
 
         return W
@@ -91,9 +134,9 @@ class Graph_ConvNet_LeNet5(nn.Module):
 
         # parameters
         # B = batch size
-        # V = no vertices
-        # Fin = no input features
-        # Fout = no output features
+        # V = number of vertices
+        # Fin = number of input features
+        # Fout = number of output features
         # K = Chebyshev order & support size
         B, V, Fin = x.size()
         B, V, Fin = int(B), int(V), int(Fin)
@@ -112,7 +155,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
         L_data = torch.from_numpy(L_data)
         L_data = L_data.type(torch.FloatTensor)
         L = torch.sparse.FloatTensor(indices, L_data, torch.Size(L.shape))
-        L = L.requires_grad(False)
+        L = L.requires_grad_(False)
         if torch.cuda.is_available():
             L = L.cuda()
 

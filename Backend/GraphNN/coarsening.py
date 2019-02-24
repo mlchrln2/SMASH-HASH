@@ -303,6 +303,7 @@ def perm_data(x, indices):
 
     N, M = x.shape
     Mnew = len(indices)
+    print(Mnew)
     assert Mnew >= M
     xnew = np.empty((N, Mnew))
     for i,j in enumerate(indices):
