@@ -31,7 +31,7 @@ img_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
-
+	
 batch_size=128
 dataset=MNIST('./data', transform=img_transform, download=True)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -67,11 +67,3 @@ train_data = perm_data(train_data.reshape(128,-1), perm)
 
 print(train_data)
 print(train_data.shape)
-# # Reindex nodes to satisfy a binary tree structure
-# train_data = perm_data(train_data, perm)
-# val_data = perm_data(val_data, perm)
-# test_data = perm_data(test_data, perm)
-
-# print(train_data.shape)
-# print(val_data.shape)
-# print(test_data.shape)
