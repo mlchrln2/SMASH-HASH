@@ -1,0 +1,109 @@
+<html>
+<head>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.css" type="text/css" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis-network.min.js"> </script>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+
+<style type="text/css">
+
+        #mynetwork {
+            width: 500px;
+            height: 500px;
+            background-color: #ffffff;
+            border: 1px solid lightgray;
+            position: relative;
+            float: left;
+        }
+
+        
+
+        
+
+        
+</style>
+
+</head>
+
+<body>
+<div id = "mynetwork"></div>
+
+
+<script type="text/javascript">
+
+    // initialize global variables.
+    var edges;
+    var nodes;
+    var network; 
+    var container;
+    var options, data;
+
+    
+    // This method is responsible for drawing the graph, returns the drawn network
+    function drawGraph() {
+        var container = document.getElementById('mynetwork');
+        
+        
+
+        // parsing and collecting nodes and edges from the python
+        nodes = new vis.DataSet([{"id": 1, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000391200.jpg", "label": 1, "shape": "circularImage"}, {"id": 2, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000527979.jpg", "label": 2, "shape": "circularImage"}, {"id": 3, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000066129.jpg", "label": 3, "shape": "circularImage"}, {"id": 4, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000224020.jpg", "label": 4, "shape": "circularImage"}, {"id": 5, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000012966.jpg", "label": 5, "shape": "circularImage"}, {"id": 6, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000186147.jpg", "label": 6, "shape": "circularImage"}, {"id": 7, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000475699.jpg", "label": 7, "shape": "circularImage"}, {"id": 8, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000300501.jpg", "label": 8, "shape": "circularImage"}, {"id": 9, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000283534.jpg", "label": 9, "shape": "circularImage"}, {"id": 10, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000407743.jpg", "label": 10, "shape": "circularImage"}, {"id": 11, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000566321.jpg", "label": 11, "shape": "circularImage"}, {"id": 12, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000114624.jpg", "label": 12, "shape": "circularImage"}, {"id": 13, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000281215.jpg", "label": 13, "shape": "circularImage"}, {"id": 14, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000152354.jpg", "label": 14, "shape": "circularImage"}, {"id": 15, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000379188.jpg", "label": 15, "shape": "circularImage"}, {"id": 16, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000412755.jpg", "label": 16, "shape": "circularImage"}, {"id": 17, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000387492.jpg", "label": 17, "shape": "circularImage"}, {"id": 18, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000067987.jpg", "label": 18, "shape": "circularImage"}, {"id": 19, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000251646.jpg", "label": 19, "shape": "circularImage"}, {"id": 20, "image": "C:\\Users\\Johnny Tsao\\Desktop\\hackillinois_2019\\smash_hash_visualization\\dummy-data\\000000276336.jpg", "label": 20, "shape": "circularImage"}]);
+        edges = new vis.DataSet([]);
+
+        // adding nodes and edges to the graph
+        data = {nodes: nodes, edges: edges};
+
+        var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": false,
+            "type": "continuous"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+        
+        
+
+        // default to using dot shape for nodes
+        options.nodes = {
+            shape: "dot"
+        }
+        
+
+        network = new vis.Network(container, data, options);
+
+        
+
+
+        
+
+        return network;
+
+    }
+
+    drawGraph();
+
+</script>
+</body>
+</html>
