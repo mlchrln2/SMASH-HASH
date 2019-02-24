@@ -76,3 +76,47 @@ class Autoencoder(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+
+
+class ImageEncoder(nn.Module):
+    def __init__(self):
+        super(ImageEncoder,self).__init__()
+        self.num_epochs = options['n_batches']
+        self.LR = options["learning_rate"]
+        self.batch_size = options["batch_size"]
+        self.hidden_size = options['hidden_neurons']
+        self.vocab_size = options['vocab_size']
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 48, 3, stride=3, padding=1),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=2),
+            nn.Conv2d(48, 18, 5, stride=1),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=1),
+            nn.Conv2d(18, 25, 5, stride=1),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=1),
+            nn.Conv2d(25, 100, 3, stride=1),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, stride=1),
+            nn.ReLU(True),
+        )
+        self.attention = Attention(100,100)
+        self.rnn = nn.GRU(100,100,1,batch_first=True)
+
+        self.criterion = nn.MSELoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.LR,
+                                          weight_decay=1e-5)
+    def forward(self, x, num):
+        x = self.conv(x).transpose(1,3).contiguous().view(self.batch_size,-1,100)
+        hn = None
+        y = torch.empty((self.batch_size,num,100))
+        for i in range(num):
+            x,x_weights = self.attention(x,hn)
+            if hn is not None:
+                hn = hn.transpose(0,1)
+            x,hn = self.rnn(x,hn)
+            y[:,i,:] = x.squeeze(1)
+            hn = hn.transpose(0,1)
+        return y
