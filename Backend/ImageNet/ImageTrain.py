@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,9 +14,12 @@ from HyperParameters import options
 from NeuralNetworks import Autoencoder
 from NeuralNetworks import ImageEncoder
 from NeuralNetworks import Attention
+from Vocabulary import word_dict
 from tensorboardX import SummaryWriter
 import gc
 import sys
+
+embedding = nn.Embedding(len(word_dict),100)
 
 def collate(data):
 	'''pads the data with 0's'''
@@ -25,10 +29,13 @@ def collate(data):
 	images = [nn.ZeroPad2d((0, max_j.item()-item.size(2), 0, max_i.item()-item.size(1)))
 			(item) for item in images]
 	images = torch.stack(images, 0)
+	length = torch.tensor([item.size(1) for item in captions])
+	max_cap = torch.max(length)
+	captions = [nn.ConstantPad1d((0, max_cap.item()-item.size(1)),0)
+			(item) for item in captions]
+	captions = torch.stack(captions, 0)
+	captions = embedding(captions)
 	return images, captions
-
-
-
 
 #create a logger
 writer = SummaryWriter('ImageNetSummary/')
@@ -44,17 +51,26 @@ to_img=ToPILImage()
 #dataset location in memory
 myPassport_dir = '/media/orlandomelchor/My Passport/datasets/coco-dataset'
 
-transform = transforms.transforms.ToTensor()
+class Word2Int(object):
+	def __call__(self,sentences):
+		max_sentence =  torch.max(torch.tensor([len(sentence.split(' ')) for sentence in sentences]))
+		words = torch.tensor([[word_dict[sentence.split(' ')[i]] if i < len(sentence.split(' ')) else 0 for i in range(max_sentence)] for sentence in sentences]).long()
+		return words
+
 
 #transform = transforms.ToTensor()
+transform = transforms.transforms.ToTensor()
+target_transform = Word2Int()
+
 #load data and captions in batches
 dataset = CocoCaptions(root='{}/train2017/'.format(myPassport_dir), 
 					   annFile='{}/annotations/captions_train2017.json'.format(myPassport_dir),
-					   transform=transform)
+					   transform=transform,
+					   target_transform=target_transform)
 dataloader = DataLoader(dataset=dataset, 
 						batch_size=batch_size,
 						collate_fn=collate,
-						shuffle=False,
+						shuffle=True,
 						drop_last=True)
 
 #initialize model and loss function
@@ -69,15 +85,19 @@ elif sys.argv[1] == 'restart':
 for epoch in range(num_epochs):
 	error = 0
 	gc.collect()
-	for i,data in enumerate(dataloader):
-		img, _ = data
-		output = model(img)
-		loss = model.criterion(img,output)
+	for i,(img,caption) in enumerate(dataloader):
+		rand_caption = torch.randint(high=caption.size(1),size=(1,))
+		caption = caption[:,rand_caption,:,:].squeeze(1)
+		print(img.size())
+		print(caption.size())
+		output = model(img,caption.size(1))
+		print(output.size())
+		loss = model.criterion(output, caption)
 		loss.backward()
 		model.optimizer.step()
 		error += loss.detach().item()
 		print('epoch {} of {} --- iteration {} of {}'.format(epoch+1, num_epochs, i+1, len(dataloader)), end='\r')
-	writer.add_scalar('data/train_loss', error/itr, epoch)
+		writer.add_scalar('data/train_loss', error/(i+1), epoch*len(dataloader)+i)
 	torch.save(model,'img_embedding_model.sav')
 '''
 output = model(img)
