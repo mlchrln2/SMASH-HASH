@@ -6,3 +6,4 @@ options['n_layers'] = 5
 options['hidden_neurons'] = 128
 options['output_neurons'] = 2
 options['num_epochs'] = 100
+options['vocab_size'] = 1024
