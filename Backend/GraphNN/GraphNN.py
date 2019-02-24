@@ -4,14 +4,15 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 import argparse
+import pathlib
 
+
+# user defined
 from Graph_Convnet import Graph_ConvNet_LeNet5
 from grid_graph import grid_graph
-from coarsening import coarsen
-from coarsening import lmax_L
-from coarsening import perm_data
-from coarsening import rescale_L
+from coarsening import coarsen, lmax_L, perm_data, rescale_L
 from hyperparameters import Options
+
 # GPU Compatibility
 
 parser = argparse.ArgumentParser(description='Trainer')
@@ -30,6 +31,7 @@ img_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
+
 
 class SpectralGraph_Trainer:
 
@@ -104,6 +106,7 @@ class SpectralGraph_Trainer:
         # self.history_logger.export_scalars_to_json(save_path + "/scalar_history.json")
         self.history_logger.close()
 
+
 def train(options):
     # load data
     dataset = MNIST('./data', transform=img_transform, download=True)
@@ -114,47 +117,49 @@ def train(options):
         pathlib.Path(output_folder).mkdir(parents=True)
 
     # perform training
-    RNN_trainer = RNN_Trainer(options, dataset , output_folder)
-    RNN_trainer.train_and_test()
+    SpectralGraph_trainer = SpectralGraph_Trainer(
+        options, dataset, output_folder)
+    SpectralGraph_trainer.train_and_test()
 
     # save results
-    RNN_trainer.log_history(output_folder)
-    RNN_trainer.save_model(output_folder)
+    SpectralGraph_trainer.log_history(output_folder)
+    SpectralGraph_trainer.save_model(output_folder)
 
 
 if __name__ == '__main__':
-	options=Options
-	batch_size = options['batch_size']
-	dataset = MNIST(options['input_data'], transform=img_transform, download=True)
-	dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-	img, truth = 0, 0
-	# Construct graph
-	grid_side = options['grid_side']
-	number_edges = options['number_edges']
-	metric = options['metric']
-	# create graph of Euclidean grid
-	A = grid_graph(grid_side, number_edges, metric)
+    options = Options
+    batch_size = options['batch_size']
+    dataset = MNIST(options['input_data'],
+                    transform=img_transform, download=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    img, truth = 0, 0
+    # Construct graph
+    grid_side = options['grid_side']
+    number_edges = options['number_edges']
+    metric = options['metric']
+    # create graph of Euclidean grid
+    A = grid_graph(grid_side, number_edges, metric)
 
-	# Compute coarsened graphs
-	coarsening_levels = options['coarsening']
-	L, perm = coarsen(A, coarsening_levels)
+    # Compute coarsened graphs
+    coarsening_levels = options['coarsening']
+    L, perm = coarsen(A, coarsening_levels)
 
-	# Compute max eigenvalue of graph Laplacians
-	lmax = []
-	for i in range(coarsening_levels):
-	    lmax.append(lmax_L(L[i]))
-	print('lmax: ' + str([lmax[i] for i in range(coarsening_levels)]))
+    # Compute max eigenvalue of graph Laplacians
+    lmax = []
+    for i in range(coarsening_levels):
+        lmax.append(lmax_L(L[i]))
+    print('lmax: ' + str([lmax[i] for i in range(coarsening_levels)]))
 
-	train_data = []
-	train_labels = []
-	for i in dataloader:
-	    train_data, train_labels = i
-	    break
+    train_data = []
+    train_labels = []
+    for i in dataloader:
+        train_data, train_labels = i
+        break
 
-	print(train_data.shape)
-	# pdb.set_trace()
-	# Reindex nodes to satisfy a binary tree structure
-	train_data = perm_data(train_data.reshape(128, -1), perm)
+    print(train_data.reshape(100,-1).shape)
+    # pdb.set_trace()
+    # Reindex nodes to satisfy a binary tree structure
+    train_data = perm_data(train_data.reshape(100, -1), perm)
 
-	print(train_data)
-	print(train_data.shape)
+    print(train_data)
+    print(train_data.shape)

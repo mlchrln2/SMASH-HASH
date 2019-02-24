@@ -129,5 +129,5 @@ CocoDataset
 dummy-data.zip
 num_to_image_dict.h5
 test_file.h5
-../Backend/GraphNN/data*
+../Backend/GraphNN/data/*
 
