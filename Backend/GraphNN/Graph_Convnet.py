@@ -5,24 +5,27 @@ import torch
 import torch.nn as nn
 # class definitions
 
+
 class sparse_mm(torch.autograd.Function):
     """
     Implementation of a new autograd function for sparse variables, 
     called "sparse_mm", by subclassing torch.autograd.Function 
     and implementing the forward and backward passes.
     """
-    
+    @staticmethod
     def forward(self, W, x):  # W is SPARSE
         self.save_for_backward(W, x)
         y = torch.mm(W, x)
         return y
-    
+
+    @staticmethod
     def backward(self, grad_output):
-        W, x = self.saved_tensors 
+        W, x = self.saved_tensors
         grad_input = grad_output.clone()
-        grad_input_dL_dW = torch.mm(grad_input, x.t()) 
-        grad_input_dL_dx = torch.mm(W.t(), grad_input )
+        grad_input_dL_dW = torch.mm(grad_input, x.t())
+        grad_input_dL_dx = torch.mm(W.t(), grad_input)
         return grad_input_dL_dW, grad_input_dL_dx
+
 
 class Graph_ConvNet_LeNet5(nn.Module):
 
@@ -91,9 +94,9 @@ class Graph_ConvNet_LeNet5(nn.Module):
 
         # parameters
         # B = batch size
-        # V = no vertices
-        # Fin = no input features
-        # Fout = no output features
+        # V = number of vertices
+        # Fin = number of input features
+        # Fout = number of output features
         # K = Chebyshev order & support size
         B, V, Fin = x.size()
         B, V, Fin = int(B), int(V), int(Fin)
@@ -112,7 +115,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
         L_data = torch.from_numpy(L_data)
         L_data = L_data.type(torch.FloatTensor)
         L = torch.sparse.FloatTensor(indices, L_data, torch.Size(L.shape))
-        L = L.requires_grad(False)
+        L = L.requires_grad_(False)
         if torch.cuda.is_available():
             L = L.cuda()
 
