@@ -41,16 +41,19 @@ dataloader = DataLoader(dataset=dataset,
 						drop_last=True)
 
 gc.collect()
-word_dict = {}
-word_dict[''] = 0
+word2idx = {}
+idx2word = {}
+word2idx[''] = 0
+idx2word[0] = ''
 itr = 1
 print('loading dictionary...')
 for i,captions in enumerate(dataloader):
 	for caption in captions:
 		for sentence in caption:
 			for word in sentence.split(' '):
-				if word not in word_dict.keys():
-					word_dict[word] = itr
+				if word not in word2idx.keys():
+					word2idx[word] = itr
+					idx2word[itr] = word
 					itr += 1
 	print('{} words loaded into vocabulary'.format(itr), end='\r')
 print()
