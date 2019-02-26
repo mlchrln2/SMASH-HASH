@@ -18,6 +18,7 @@ if not args.disable_cuda and torch.cuda.is_available():
 else:
     args.device = torch.device('cpu')
 
+
 class sparse_mm(torch.autograd.Function):
     """
     Implementation of a new autograd function for sparse variables, 
@@ -39,7 +40,8 @@ class sparse_mm(torch.autograd.Function):
         return grad_input_dL_dW, grad_input_dL_dx
 
 
-class Graph_ConvNet_LeNet5(nn.Module):
+
+class Graph_ConvNet(nn.Module):
 
     def __init__(self, options):
 
@@ -48,6 +50,8 @@ class Graph_ConvNet_LeNet5(nn.Module):
         super(Graph_ConvNet_LeNet5, self).__init__()
 
         # parameters
+        self.options = options
+        self.global_step = 0  # for adjusting lr
         CL1_F = options['CL1_F']
         CL1_K = options['CL1_K']
         CL2_F = options['CL2_F']
@@ -223,3 +227,57 @@ class Graph_ConvNet_LeNet5(nn.Module):
 
         _, class_predicted = torch.max(y_predicted.data, 1)
         return 100.0 * (class_predicted == test_l).sum() / y_predicted.size(0)
+
+    def do_train(self, samples, perm, L, L_max, do_training=True):
+        if do_training:
+            self.train()
+        else:
+            self.eval()
+        total_loss = 0
+        total_acc = 0
+        embedding_size = 0
+        optimizer = self.update(selfoptions['learning_rate'])
+        dropout_value = self.options['dropout_value']
+        l2_regularization = self.options['l2_regularization']
+        for i, data in enumerate(samples, 1):
+            optimizer.zero_grad()
+
+            train_data, train_label = data
+            train_data = perm_data(train_data, perm)
+            embedding_size = len(train_data)
+            # moving tensors to adequate device
+            train_data = train_data.to(args.device)
+            train_labels = train_labels._requires_grad(False).to(args.device)
+
+            output = self.forward(
+                train_data, dropout_value, L, lmax).to(args.device)
+            loss = self.loss(output, train_labels, l2_regularization)
+            loss_train = loss.data.item()
+            if do_training is True:
+                loss.backward()
+                optimizer.step()
+
+            total_loss += loss
+            acc = self.accuracy(output.cpu().detach(),
+                                train_labels.data.cpu().detach())
+            total_acc += acc
+
+        if do_training is True:
+            global_step += len(samples)
+            options['learning_rate'] = options['learning_rate'] * \
+                pow(options['decay'], float(global_step // embedding_size))
+            optimizer = net.update_learning_rate(
+                optimizer, options['learning_rate'])
+
+        total_loss = total_loss / \
+            len(samples.dataset) * self.options['batch_size']
+        total_acc = total_acc / len(samples.dataset) * \
+            self.options['batch_size']
+        total_loss = torch.tensor(total_loss)
+        return total_loss, total_acc
+
+    def do_eval(self, samples, do_training=False):
+        return self.do_train(samples, do_training=False)
+
+    def get_model(self):
+        return self.state_dict()
