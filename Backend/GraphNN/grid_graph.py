@@ -2,24 +2,24 @@ import sklearn
 import sklearn.metrics
 import scipy.sparse, scipy.sparse.linalg  # scipy.spatial.distance
 import numpy as np
-
+import torch
 
 def grid_graph(grid_side,number_edges,metric):
     """Generate graph of a grid"""
     z = grid(grid_side)
     dist, idx = distance_sklearn_metrics(z, k=number_edges, metric=metric)
     A = adjacency(dist, idx)
-    print("nb edges: ",A.nnz)
+    # print("nb edges: ",A.nnz)
     return A
 
 
-def grid(m, dtype=np.float32):
+def grid(m, dtype=torch.float32):
     """Return coordinates of grid points"""
     M = m**2
-    x = np.linspace(0,1,m, dtype=dtype)
-    y = np.linspace(0,1,m, dtype=dtype)
-    xx, yy = np.meshgrid(x, y)
-    z = np.empty((M,2), dtype)
+    x = torch.linspace(0,1,m, dtype=dtype, requires_grad=False)
+    y = torch.linspace(0,1,m, dtype=dtype, requires_grad=False)
+    xx, yy = torch.meshgrid(x, y)
+    z = torch.empty((M,2), dtype=dtype, requires_grad=False)
     z[:,0] = xx.reshape(M)
     z[:,1] = yy.reshape(M)
     return z
@@ -27,7 +27,7 @@ def grid(m, dtype=np.float32):
 
 def distance_sklearn_metrics(z, k=4, metric='euclidean'):
     """Compute pairwise distances"""
-    d = sklearn.metrics.pairwise.pairwise_distances(z, metric=metric, n_jobs=1)
+    d = sklearn.metrics.pairwise.pairwise_distances(z, metric=metric, n_jobs=-2)
     # k-NN
     idx = np.argsort(d)[:,1:k+1]
     d.sort()
@@ -47,7 +47,7 @@ def adjacency(dist, idx):
     dist = np.exp(- dist**2 / sigma2)
 
     # Weight matrix
-    I = np.arange(0, M).repeat(k)
+    I = torch.arange(0, M).repeat(k)
     J = idx.reshape(M*k)
     V = dist.reshape(M*k)
     W = scipy.sparse.coo_matrix((V, (I, J)), shape=(M, M))
@@ -65,5 +65,4 @@ def adjacency(dist, idx):
     return W
 
 
-    
     

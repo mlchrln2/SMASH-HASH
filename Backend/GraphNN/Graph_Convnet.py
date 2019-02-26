@@ -54,30 +54,8 @@ class Graph_ConvNet_LeNet5(nn.Module):
         CL2_K = options['CL2_K']
         FC1_F = options['FC1_F']
         FC2_F = options['FC2_F']
-
-
-        # make the graphs
-
-        # Construct graph
-        grid_side = options['grid_side']
-        number_edges = options['number_edges']
-        metric = options['metric']
-        # create graph of Euclidean grid
-        Grid = grid_graph(grid_side, number_edges, metric)
-
-        # Compute coarsened graphs
-        coarsening_levels = options['coarsening']
-        L, perm = coarsen(Grid, coarsening_levels)
-
-        # Compute max eigenvalue of graph Laplacians
-        lmax = []
-        for i in range(coarsening_levels):
-            lmax.append(lmax_L(L[i]))
-        print('lmax: ' + str([lmax[i] for i in range(coarsening_levels)]))
-
-        D = perm
-        FC1Fin = CL2_F * (D // 16)
-
+        D = options['D']
+        FC1Fin = options['FC1Fin']
 
         # graph CL1
         self.cl1 = nn.Linear(CL1_K, CL1_F)
@@ -155,18 +133,12 @@ class Graph_ConvNet_LeNet5(nn.Module):
         L_data = torch.from_numpy(L_data)
         L_data = L_data.type(torch.FloatTensor)
         L = torch.sparse.FloatTensor(indices, L_data, torch.Size(L.shape))
-        L = L.requires_grad_(False)
-        if torch.cuda.is_available():
-            L = L.cuda()
+        L = L.requires_grad_(False).to(args.device)
 
         # transform to Chebyshev basis
         x0 = x.permute(1, 2, 0).contiguous()  # V x Fin x B
         x0 = x0.view([V, Fin * B])            # V x Fin*B
         x = x0.unsqueeze(0)                 # 1 x V x Fin*B
-
-        def concat(x, x_):
-            x_ = x_.unsqueeze(0)            # 1 x V x Fin*B
-            return torch.cat((x, x_), 0)    # K x V x Fin*B
 
         if K > 1:
             x1 = my_sparse_mm()(L, x0)              # V x Fin*B
@@ -247,7 +219,7 @@ class Graph_ConvNet_LeNet5(nn.Module):
 
         return optimizer
 
-    def evaluation(self, y_predicted, test_l):
+    def accuracy(self, y_predicted, test_l):
 
         _, class_predicted = torch.max(y_predicted.data, 1)
         return 100.0 * (class_predicted == test_l).sum() / y_predicted.size(0)

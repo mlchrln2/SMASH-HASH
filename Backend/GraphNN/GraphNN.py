@@ -27,11 +27,6 @@ if not args.disable_cuda and torch.cuda.is_available():
 else:
     args.device = torch.device('cpu')
 
-img_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
-
 
 class SpectralGraph_Trainer:
 
@@ -109,7 +104,12 @@ class SpectralGraph_Trainer:
 
 def train(options):
     # load data
-    dataset = MNIST('./data', transform=img_transform, download=True)
+    dataset = MNIST('./data/', train=True, download=True,
+                    transform=transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            (0.1307,), (0.3081,))
+                    ]))
 
     # prepare outputs
     output_folder = options['output_folder']
@@ -129,9 +129,13 @@ def train(options):
 if __name__ == '__main__':
     options = Options
     batch_size = options['batch_size']
-    dataset = MNIST(options['input_data'],
-                    transform=img_transform, download=True)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = MNIST('./data/', train=True, download=True,
+                    transform=transforms.Compose([
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            (0.1307,), (0.3081,))
+                    ]))
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     img, truth = 0, 0
     # Construct graph
     grid_side = options['grid_side']
@@ -156,7 +160,7 @@ if __name__ == '__main__':
         train_data, train_labels = i
         break
 
-    print(train_data.reshape(100,-1).shape)
+    print(train_data.reshape(100, -1).shape)
     # pdb.set_trace()
     # Reindex nodes to satisfy a binary tree structure
     train_data = perm_data(train_data.reshape(100, -1), perm)

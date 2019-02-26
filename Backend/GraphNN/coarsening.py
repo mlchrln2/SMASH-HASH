@@ -41,7 +41,7 @@ def lmax_L(L):
 
 
 # graph coarsening with Heavy Edge Matching
-def coarsen(A, levels):
+def coarsen(A, levels, Print=False):
     
     graphs, parents = HEM(A, levels)
     perms = compute_perm(parents)
@@ -56,7 +56,8 @@ def coarsen(A, levels):
         A = A.tocsr()
         A.eliminate_zeros()
         Mnew, Mnew = A.shape
-        print('Layer {0}: M_{0} = |V| = {1} nodes ({2} added), |E| = {3} edges'.format(i, Mnew, Mnew-M, A.nnz//2))
+        if Print:
+            print('Layer {0}: M_{0} = |V| = {1} nodes ({2} added), |E| = {3} edges'.format(i, Mnew, Mnew-M, A.nnz//2))
 
         L = laplacian(A, normalized=True)
         laplacians.append(L)
@@ -64,7 +65,7 @@ def coarsen(A, levels):
     return laplacians, perms[0] if len(perms) > 0 else None
 
 
-def HEM(W, levels, rid=None):
+def HEM(W, levels, rid=None, Print=False):
     """
     Coarsen a graph multiple times using the Heavy Edge Matching (HEM).
 
@@ -98,7 +99,8 @@ def HEM(W, levels, rid=None):
     graphs = []
     graphs.append(W)
 
-    print('Heavy Edge Matching coarsening with Xavier version')
+    if Print:
+        print('Heavy Edge Matching coarsening with Xavier version')
 
     for _ in range(levels):
 
@@ -259,10 +261,6 @@ def compute_perm(parents):
 
     return indices[::-1]
 
-assert (compute_perm([np.array([4,1,1,2,2,3,0,0,3]),np.array([2,1,0,1,0])])
-        == [[3,4,0,9,1,2,5,8,6,7,10,11],[2,4,1,3,0,5],[0,1,2]])
-
-
 
 def perm_adjacency(A, indices):
     """
@@ -312,7 +310,6 @@ def perm_data(x, indices):
             xnew[:,i] = x[:,j]
         # Fake vertex because of singeltons.
         # They will stay 0 so that max pooling chooses the singelton.
-        # Or -infty ?
         else:
             xnew[:,i] = np.zeros(N)
     return xnew
