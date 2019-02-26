@@ -143,17 +143,19 @@ class CaptionDecoder(nn.Module):
 		self.softmax = nn.Softmax(1)
 		self.max_len = options['max_len']
 	def forward(self,x,hn):
-		x, x_weights = self.attention(x,hn)
+		x,x_weights = self.attention(x,hn)
 		hn = hn[:,0].unsqueeze(1)
 		x,hn = self.rnn(x,hn.transpose(0,1))
 		return x
-	def infer(self,x,hn):
-		word = []
+	def infer(self,features,caption):
+		words = torch.zeros(self.max_len,dtype=torch.long)
 		for i in range(self.max_len):
-			x, x_weights = self.attention(x,hn)
-			hn = hn.transpose(0,1)
-			x,hn = self.rnn(x,hn)
-			word.append(self.word_decoder(hn))
+			x,x_weights = self.attention(features,caption)
+			caption = caption.transpose(0,1)
+			caption,hn = self.rnn(features,caption)
+			idx = self.word_decoder(caption)
+			words[i] = idx
+		return words
 
 class Image2Caption(nn.Module):
 	def __init__(self):
@@ -174,6 +176,6 @@ class Image2Caption(nn.Module):
 		return output_captions, input_captions.detach()
 	def infer(self, image):
 		features = self.encoder(image)
-		caption = self.embedding(torch.tensor([0]).long())
+		caption = self.embedding(torch.zeros(1,dtype=torch.long))
 		captions = self.decoder.infer(features, caption)
 		return captions

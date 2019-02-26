@@ -12,17 +12,20 @@ class CocoCaptions(data.Dataset):
 		self.coco = COCO(annFile)
 		self.ids = list(self.coco.imgs.keys())
 		self.target_transform = target_transform
+		self.itr = 2
 
 	def __getitem__(self, index):
 		coco = self.coco
 		img_id = self.ids[index]
 		ann_ids = coco.getAnnIds(imgIds=img_id)
 		anns = coco.loadAnns(ann_ids)
-		target = [ann['caption'] for ann in anns]
-		if self.target_transform is not None:
-			target = self.target_transform(target)
-		return target
-
+		for ann in anns:
+			for word in ann['caption'].split():
+				if word not in word2idx.keys():
+					word2idx[word] = self.itr
+					idx2word[self.itr] = word
+					self.itr += 1
+		return self.itr
 	def __len__(self):
 		return len(self.ids)
 
@@ -43,17 +46,12 @@ dataloader = DataLoader(dataset=dataset,
 gc.collect()
 word2idx = {}
 idx2word = {}
-word2idx[''] = 0
-idx2word[0] = ''
-itr = 1
+word2idx['START'] = 0
+word2idx['STOP'] = 1
+idx2word[0] = 'START'
+idx2word[1] = 'STOP'
+
 print('loading dictionary...')
-for i,captions in enumerate(dataloader):
-	for caption in captions:
-		for sentence in caption:
-			for word in sentence.split(' '):
-				if word not in word2idx.keys():
-					word2idx[word] = itr
-					idx2word[itr] = word
-					itr += 1
-	print('{} words loaded into vocabulary'.format(itr), end='\r')
+for itr in dataloader:
+	print('{} words loaded into vocabulary'.format(itr.item()), end='\r')
 print()
