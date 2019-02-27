@@ -1,19 +1,18 @@
+#dependencies
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-import matplotlib.pyplot as plt
-from torchvision.transforms import ToPILImage
+from tensorboardX import SummaryWriter
 import gc
 import sys
 
 #user defined modules
 from HyperParameters import options
 from NeuralNetworks import Image2Caption
-from Vocabulary import word2idx
-from Vocabulary import idx2word
-from tensorboardX import SummaryWriter
 from DataLoader import dataloader
+
+#modules used for testing and viewing
+import numpy as np
+import matplotlib.pyplot as plt
+from torchvision.transforms import ToPILImage
 
 #create a logger
 writer = SummaryWriter('ImageNetSummary/')
@@ -40,14 +39,13 @@ print('Note model parameters:\n{}'.format(model.parameters))
 for epoch in range(num_epochs):
 	error = 0
 	gc.collect()
-	for i,(img,captions) in enumerate(dataloader):
-		rand_caption = torch.randint(high=captions.size(1),size=(1,))
-		captions = captions[:,rand_caption,:].squeeze(1)
-		output_captions, input_captions = model(img,captions)
-		loss = model.criterion(output_captions,input_captions)
+	for i,(img,labels,lengths) in enumerate(dataloader):
+		labels = labels[:,0,:].squeeze(1)
+		predictions, summaries = model(img,labels)
+		loss = model.criterion(predictions,labels)
 		loss.backward()
 		model.optimizer.step()
 		error += loss.detach().item()
 		print('epoch {} of {} --- iteration {} of {}'.format(epoch+1, num_epochs, i+1, len(dataloader)), end='\r')
-		writer.add_scalar('data/train_loss', error/(i+1), epoch*len(dataloader)+i)
-	torch.save(model,'img_embedding_model.sav')
+	writer.add_scalar('data/train_loss', error/len(dataloader), epoch)
+	torch.save(model,'img_embedding_model.pth')
