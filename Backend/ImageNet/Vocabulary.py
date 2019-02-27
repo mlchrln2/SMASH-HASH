@@ -1,9 +1,14 @@
+#dependencies
 import torch
 import torch.utils.data as data
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import nltk
 import gc
 import os
+
+#user defined modules
+from HyperParameters import options
 
 class CocoCaptions(data.Dataset):
 	def __init__(self, root, annFile, target_transform=None):
@@ -12,7 +17,7 @@ class CocoCaptions(data.Dataset):
 		self.coco = COCO(annFile)
 		self.ids = list(self.coco.imgs.keys())
 		self.target_transform = target_transform
-		self.itr = 2
+		self.itr = 3
 
 	def __getitem__(self, index):
 		coco = self.coco
@@ -20,7 +25,7 @@ class CocoCaptions(data.Dataset):
 		ann_ids = coco.getAnnIds(imgIds=img_id)
 		anns = coco.loadAnns(ann_ids)
 		for ann in anns:
-			for word in ann['caption'].split():
+			for word in nltk.tokenize.word_tokenize(str(ann['caption']).lower()):
 				if word not in word2idx.keys():
 					word2idx[word] = self.itr
 					idx2word[self.itr] = word
@@ -32,8 +37,8 @@ class CocoCaptions(data.Dataset):
 #dataset location in memory
 myPassport_dir = '/media/orlandomelchor/My Passport/datasets/coco-dataset'
 
-#transform = transforms.ToTensor()
-transform = transforms.transforms.ToTensor()
+#transform images from PIL images to tensors
+transform = transforms.ToTensor()
 
 #load data and captions in batches
 dataset = CocoCaptions(root='{}/train2017/'.format(myPassport_dir), 
@@ -46,10 +51,16 @@ dataloader = DataLoader(dataset=dataset,
 gc.collect()
 word2idx = {}
 idx2word = {}
-word2idx['START'] = 0
-word2idx['STOP'] = 1
-idx2word[0] = 'START'
-idx2word[1] = 'STOP'
+
+start_word = options['start_word']
+end_word = options['end_word']
+unk_word = options['unk_word']
+word2idx[start_word] = 0
+word2idx[end_word] = 1
+word2idx[unk_word] = 2
+idx2word[0] = start_word
+idx2word[1] = end_word
+idx2word[2] = unk_word
 
 print('loading dictionary...')
 for itr in dataloader:
