@@ -35,14 +35,14 @@ class CocoCaptions(data.Dataset):
 		return len(self.ids)
 
 #dataset location in memory
-myPassport_dir = '/media/orlandomelchor/My Passport/datasets/coco-dataset'
+data_dir = options['data_dir']
 
 #transform images from PIL images to tensors
 transform = transforms.ToTensor()
 
 #load data and captions in batches
-dataset = CocoCaptions(root='{}/train2017/'.format(myPassport_dir), 
-					   annFile='{}/annotations/captions_train2017.json'.format(myPassport_dir))
+dataset = CocoCaptions(root='{}/train2017/'.format(data_dir), 
+					   annFile='{}/annotations/captions_train2017.json'.format(data_dir))
 dataloader = DataLoader(dataset=dataset, 
 						batch_size=1,
 						shuffle=False,
@@ -65,4 +65,4 @@ idx2word[2] = unk_word
 print('loading dictionary...')
 for itr in dataloader:
 	print('{} words loaded into vocabulary'.format(itr.item()), end='\r')
-print()
+print('complete')
