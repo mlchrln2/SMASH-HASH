@@ -7,15 +7,13 @@ import sys
 #user defined modules
 from HyperParameters import options
 from NeuralNetworks import Image2Caption
-from DataLoader import dataloader
+from DataLoader import train_loader as dataloader
 
 #modules used for testing and viewing
 import numpy as np
 import matplotlib.pyplot as plt
 from torchvision.transforms import ToPILImage
 
-#create a logger
-writer = SummaryWriter('ImageNetSummary/')
 
 #load in hyper-parameters from python file
 num_epochs = options['num_epochs']
@@ -29,18 +27,20 @@ to_img=ToPILImage()
 model = None
 
 if sys.argv[1] == 'continue':
-    model = torch.load('img_embedding_model.sav')
+    model = torch.load('img_embedding_model.pth')
 #to start training a new model type: "python filename restart"
 elif sys.argv[1] == 'restart':
     model = Image2Caption()
 print('Note model parameters:\n{}'.format(model.parameters))
-#writer.add_graph(model, (torch.randn(1,3,640,640), torch.zeros(1,17)))
+
+#create a logger
+writer = SummaryWriter('ImageNetSummary/')
+writer.add_graph(model, (torch.randn(1,3,224,224), torch.randint(20,(1,20),dtype=torch.long)),vervose=True)
 
 for epoch in range(num_epochs):
 	error = 0
 	gc.collect()
 	for i,(img,labels,lengths) in enumerate(dataloader):
-		labels = labels[:,0,:].squeeze(1)
 		predictions, summaries = model(img,labels)
 		loss = model.criterion(predictions,labels)
 		loss.backward()
