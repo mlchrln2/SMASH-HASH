@@ -56,12 +56,12 @@ class AnnotationWriter(data.Dataset):
 		return len(self.ids)
 
 #dataset location in memory
-myPassport_dir = '/media/orlandomelchor/My Passport/datasets/coco-dataset'
+data_dir = options['data_dir']
 
 #load data and captions in batches
-dataset = AnnotationWriter(root='{}/train2017/'.format(myPassport_dir),
-						   annFile='{}/annotations/captions_train2017.json'.format(myPassport_dir),
-						   filename='{}/coco_annotations.h5'.format(myPassport_dir),
+dataset = AnnotationWriter(root='{}/train2017/'.format(data_dir),
+						   annFile='{}/annotations/captions_train2017.json'.format(data_dir),
+						   filename='{}/coco_annotations.h5'.format(data_dir),
 						   )
 
 for i,_ in enumerate(dataset):
