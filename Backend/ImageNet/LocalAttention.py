@@ -4,7 +4,7 @@ import torch.nn as nn
 
 #user defined modules
 from HyperParameters import options
-from DataLoader import dataloader
+from DataLoader import test_loader as dataloader
 '''
 General Soft-Attention Model
 '''
@@ -63,42 +63,51 @@ class LocalAttention(nn.Module):
 		self.V_p = nn.Linear(in_features=self.p_size,
 							 out_features=1,
 							 bias=False)
-		self.softmax = nn.Softmax(1)
+		self.softmax = nn.Softmax(2)
 		self.tanh = nn.Tanh()
 		self.sigmoid = nn.Sigmoid()
-		self.window_length = 2
-		self.stan_dev = self.window_length/2
+		self.D = 50
+		self.loss = nn.MSELoss()
+		self.optimizer = torch.optim.Adam(params=self.parameters(), lr=1, weight_decay=1e-5)
 	def forward(self,q,c_t):
 		if c_t is None:
 			c_t = q.new_zeros(q.size(0), 1, self.c_size)
 		S = q.size(1)
 		p_t = self.predictive_alignment(S, c_t)
-		win_low = (p_t-self.window_length).long()
-		win_high =  (p_t+self.window_length).long()
-		for low_arr, high_arr in zip(win_low, win_high):
-			for low,high in zip(low_arr,high_arr):
-				print(torch.arange(low.item(),high.item()))
-		window = torch.tensor([[[elem for elem in range(low.item(),high.item())] 
-								for low,high in zip(low_arr,high_arr)]
-								for low_arr,high_arr in zip(win_low,win_high)])
-		window = torch.clamp(torch.clamp(window,max=S),min=0)
-		q = q[:,window]
-		print(q.size(),'0')
-		a_t = self.align(q,c_t)*torch.exp(-(s-p_t)/(2*torch.pow(self.stan_dev,2)))
-		s_t = torch.bmm(a_t,q)
+		p_t = p_t.clone()
+		q = nn.ConstantPad2d((0,0,1,0),float('nan'))(q)
+		q = torch.stack([q.gather(1,(torch.clamp((p_t+idx+1).long().repeat(1,1,q.size(2)),
+						 min=0,max=q.size(1))%q.size(1))) for idx in range(-self.D,self.D+1)],dim=2)
+		W_attn,q1 = self.align(q,c_t)
+		exponent = torch.stack([-2*pow((idx + p_t.long().float() - p_t)/self.D,2) 
+								for idx in range(-self.D,self.D+1)], dim=2)
+		W_attn = W_attn*torch.exp(exponent)
+		s_t = (W_attn*q1).sum(2)
 		return s_t
 	def predictive_alignment(self, S, c_t):
 		p_t = S * self.sigmoid(self.V_p(self.tanh(self.W_p(c_t))))
 		return p_t
 	def align(self,q,c_t):
-		W_attn = self.softmax(self.score(q,c_t))
-		return W_attn
-	def score(self,q,c_t):
-		print(q.size(),'1')
-		print(c_t.size(),'2')
-		print(self.W_a(q).size(),'3')
-		return torch.bmm(self.W_a(q),c_t.transpose(1,2))
+		s_out, q1 = self.score(q,c_t)
+		W_attn = self.softmax(s_out).unsqueeze(3)
+		return W_attn,q1
+	def score(self,q_new,c_t):
+		temp1 = torch.isnan(q_new[:,:,:,0])
+		q_new_1 = q_new.clone()
+		q_new_1[temp1] = 0
+		W_q_new = self.W_a(q_new_1)
+		W_q_new[temp1] = float('nan')
+		a_t = torch.bmm(W_q_new.view(-1,W_q_new.size(2),W_q_new.size(3)),c_t.view(-1,c_t.size(2),1)).view(W_q_new.size(0),W_q_new.size(1),W_q_new.size(2))
+		temp2 = torch.isnan(a_t)
+		a_t = a_t.clone()
+		a_t[temp2] = -float('inf')
+		return a_t, q_new_1
 
 model = LocalAttention(3, 512)
-for _,_,_ in dataloader:
-	output = model(torch.randn(2,10,3),torch.randn(2,2,512))
+for i,(img,labels,lengths) in enumerate(dataloader):
+	model.optimizer.zero_grad()
+	output = model(torch.randn(8,224*224,3), torch.randn(8,20,512))
+	error = model.loss(output, torch.randn_like(output))
+	error.backward()
+	model.optimizer.step()
+	print(model.W_a.weight)
