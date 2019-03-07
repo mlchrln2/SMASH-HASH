@@ -19,10 +19,7 @@ class Image2Caption(nn.Module):
 		self.hidden_size = options['hidden_size']
 		self.image_encoder = ImageEncoder(channel_size=self.channel_size)
 		self.word_encoder = WordEncoder(vocab_size=self.vocab_size, 
-									    embed_size=self.embed_size,
-									    hidden_size=self.hidden_size,
-									    bidirectional=self.bidirectional, 
-									    num_layers=self.num_layers)
+									    embed_size=self.embed_size)
 		self.caption_decoder = CaptionDecoder(hidden_size=self.hidden_size,
 											  channel_size=self.channel_size,
 									          vocab_size=self.vocab_size, 
@@ -64,23 +61,14 @@ class ImageEncoder(nn.Module):
 		return x
 
 class WordEncoder(nn.Module):
-	def __init__(self, vocab_size, embed_size, hidden_size, bidirectional, num_layers):
+	def __init__(self, vocab_size, embed_size):
 		super(WordEncoder, self).__init__()
 		self.vocab_size = vocab_size
 		self.embed_size = embed_size
-		self.hidden_size = hidden_size
-		self.bidirectional = bidirectional
-		self.num_layers = num_layers
 		self.embedding = nn.Embedding(num_embeddings=self.vocab_size, 
 									  embedding_dim=self.embed_size)
-		self.rnn = nn.GRU(input_size=self.embed_size,
-						  hidden_size=self.hidden_size, 
-						  bidirectional=self.bidirectional,
-						  num_layers=self.num_layers,
-						  batch_first=True)
 	def forward(self,captions):
 		embed = self.embedding(captions)
-		embed,hn = self.rnn(embed,None)
 		return embed
 
 class CaptionDecoder(nn.Module):
@@ -161,6 +149,8 @@ class Attention(nn.Module):
 		W_attn = self.softmax(self.score(q,c_t))
 		alpha_t = W_attn.transpose(1,2)
 		s_t = torch.bmm(alpha_t,q)
+		print(q.size())
+		print(s_t.size())
 		return s_t, W_attn
 	def score(self,q,c_t):
 		a = torch.bmm(self.W_a(q),c_t.transpose(1,2))
