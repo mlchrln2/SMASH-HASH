@@ -8,10 +8,12 @@ from PIL import Image
 import os
 import os.path
 import h5py
-import numpy as np
 
 #user defined modules
 from HyperParameters import options
+
+idx2word_file = 'idx2word.h5'
+idx2word = h5py.File(idx2word_file, 'r')
 
 class CocoDataset(data.Dataset):
 	"""`MS Coco Captions <http://mscoco.org/dataset/#captions-challenge2015>`_ Dataset.
@@ -69,6 +71,10 @@ def collate(batch):
 	captions = [nn.ConstantPad1d((0, max_j.item()-item.size(0)),1)
 			   (item) for item in captions]
 	captions = torch.stack(captions, 0)
+	order = torch.flip(torch.argsort(lengths),(0,))
+	images = images[order]
+	captions = captions[order]
+	lengths = lengths[order]
 	return images, captions, lengths
 
 #transform for data
@@ -77,9 +83,8 @@ transform = transforms.Compose([
 	transforms.Resize(256),                          # smaller edge of image resized to 256
 	transforms.RandomCrop(224),                      # get 224x224 crop from random location
 	transforms.RandomHorizontalFlip(),               # horizontally flip image with probability=0.5
-	transforms.ToTensor(),                           # convert the PIL Image to a tensor
-	transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
-						 (0.229, 0.224, 0.225))])
+	transforms.ToTensor()                           # convert the PIL Image to a tensor
+])
 
 #dataset location in memory
 data_dir = options['data_dir']
