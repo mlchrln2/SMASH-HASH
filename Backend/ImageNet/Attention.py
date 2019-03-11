@@ -181,13 +181,12 @@ class LocalAttention2d(nn.Module):
 		q, W_attn, loc = q.squeeze(0), W_attn.squeeze(0), loc.squeeze(0)
 		img = q
 		q = q.permute(1,2,0)
-		images = torch.zeros(loc.size(0),4,loc.size(1),loc.size(2))
-		for i,frame in enumerate(loc):
-			img_rgb = q[frame[...,0],frame[...,1]]
-			img_rgb = img_rgb.permute(2,0,1)
-			img_alpha = W_attn[i].unsqueeze(0)
-			img_alpha_max = torch.max(img_alpha)
-			img_alpha_min = torch.min(img_alpha)
-			img_alpha = (img_alpha-img_alpha_min)/(img_alpha_max-img_alpha_min)
-			images[i] = torch.cat([img_rgb,img_alpha],dim=0)
+		loc = loc.squeeze(0)
+		img_rgb = q[loc[...,0],loc[...,1]]
+		img_rgb = img_rgb.permute(2,0,1)
+		img_alpha = W_attn
+		img_alpha_max = torch.max(img_alpha)
+		img_alpha_min = torch.min(img_alpha)
+		img_alpha = (img_alpha-img_alpha_min)/(img_alpha_max-img_alpha_min)
+		images = torch.cat([img_rgb,img_alpha],dim=0)
 		return images
