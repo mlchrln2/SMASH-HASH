@@ -6,19 +6,25 @@ from torchvision import transforms
 import nltk
 import gc
 import os
+import h5py
+import numpy as np
 
 #user defined modules
 from HyperParameters import options
 
 class CocoCaptions(data.Dataset):
-	def __init__(self, root, annFile, target_transform=None):
+	def __init__(self, root, annFile, idx2word_file, target_transform=None):
 		from pycocotools.coco import COCO
 		self.root = os.path.expanduser(root)
 		self.coco = COCO(annFile)
 		self.ids = list(self.coco.imgs.keys())
 		self.target_transform = target_transform
+		self.idx2word_file = idx2word_file
+		self.idx2word = h5py.File(self.idx2word_file, 'w')
 		self.itr = 3
-
+		self.idx2word.create_dataset(name=str(0),data=np.string_(options['start_word']))
+		self.idx2word.create_dataset(name=str(1),data=np.string_(options['end_word']))
+		self.idx2word.create_dataset(name=str(2),data=np.string_(options['unk_word']))
 	def __getitem__(self, index):
 		coco = self.coco
 		img_id = self.ids[index]
@@ -26,9 +32,9 @@ class CocoCaptions(data.Dataset):
 		anns = coco.loadAnns(ann_ids)
 		for ann in anns:
 			for word in nltk.tokenize.word_tokenize(str(ann['caption']).lower()):
-				if word not in word2idx.keys():
+				if not word in word2idx.keys():
+					self.idx2word.create_dataset(name=str(self.itr),data=np.string_(word))
 					word2idx[word] = self.itr
-					idx2word[self.itr] = word
 					self.itr += 1
 		return self.itr
 	def __len__(self):
@@ -42,15 +48,15 @@ transform = transforms.ToTensor()
 
 #load data and captions in batches
 dataset = CocoCaptions(root='{}/train2017/'.format(data_dir), 
-					   annFile='{}/annotations/captions_train2017.json'.format(data_dir))
-dataloader = DataLoader(dataset=dataset, 
+					   annFile='{}/annotations/captions_train2017.json'.format(data_dir),
+					   idx2word_file='idx2word.h5')
+dataloader = DataLoader(dataset=dataset,
 						batch_size=1,
 						shuffle=False,
 						drop_last=True)
 
 gc.collect()
 word2idx = {}
-idx2word = {}
 
 start_word = options['start_word']
 end_word = options['end_word']
@@ -58,9 +64,6 @@ unk_word = options['unk_word']
 word2idx[start_word] = 0
 word2idx[end_word] = 1
 word2idx[unk_word] = 2
-idx2word[0] = start_word
-idx2word[1] = end_word
-idx2word[2] = unk_word
 
 print('loading dictionary...')
 for itr in dataloader:
