@@ -12,8 +12,6 @@ import nltk
 #user defined modules
 from HyperParameters import options
 from Vocabulary import word2idx
-from Vocabulary import idx2word
-
 
 class AnnotationWriter(data.Dataset):
 	def __init__(self, root, annFile, filename, target_transform=None):
@@ -63,7 +61,7 @@ dataset = AnnotationWriter(root='{}/train2017/'.format(data_dir),
 						   annFile='{}/annotations/captions_train2017.json'.format(data_dir),
 						   filename='{}/coco_annotations.h5'.format(data_dir),
 						   )
-
+gc.collect()
 for i,_ in enumerate(dataset):
-	print('iteration {} of {}'.format(i, len(dataset)),end='\r')
+	print('annotation {} of {} loaded'.format(i, len(dataset)),end='\r')
 print('complete')
