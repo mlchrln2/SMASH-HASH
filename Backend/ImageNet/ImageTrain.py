@@ -20,9 +20,6 @@ num_epochs = options['num_epochs']
 batch_size = options['batch_size']
 learning_rate = options['learning_rate']
 
-#set up a method for drawing the images
-to_img=ToPILImage()
-
 #initialize model and loss function
 model = None
 
@@ -35,13 +32,13 @@ print('Note model parameters:\n{}'.format(model.parameters))
 
 #create a logger
 writer = SummaryWriter('ImageNetSummary/')
-writer.add_graph(model, (torch.randn(1,3,224,224), torch.randint(20,(1,20),dtype=torch.long)),vervose=True)
+#writer.add_graph(model, (torch.randn(1,3,224,224), torch.randint(20,(1,20),dtype=torch.long)),vervose=True)
 
 for epoch in range(num_epochs):
 	error = 0
 	gc.collect()
 	for i,(img,labels,lengths) in enumerate(dataloader):
-		predictions, summaries = model(img,labels)
+		predictions = model(img,labels, lengths)
 		loss = model.criterion(predictions,labels)
 		loss.backward()
 		model.optimizer.step()
