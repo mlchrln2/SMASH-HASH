@@ -1,8 +1,6 @@
 #dependencies
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
-from torchvision.transforms import ToPILImage
 
 '''
 General Soft-Attention Model
@@ -47,7 +45,7 @@ class Attention(nn.Module):
 		W_attn = self.softmax(self.score(q,c_t))
 		return W_attn
 
-class LocalAttention(nn.Module):
+class LocalAttention1d(nn.Module):
 	def __init__(self, query_size, context_size, alignment_size):
 		super(LocalAttention,self).__init__()
 		self.q_size = query_size
@@ -66,8 +64,6 @@ class LocalAttention(nn.Module):
 		self.tanh = nn.Tanh()
 		self.sigmoid = nn.Sigmoid()
 		self.D = 3
-		self.loss = nn.MSELoss()
-		self.optimizer = torch.optim.Adam(params=self.parameters(), lr=1, weight_decay=1e-5)
 	def forward(self,q,c_t):
 		if c_t is None:
 			c_t = q.new_zeros(q.size(0), 1, self.c_size)
@@ -114,8 +110,6 @@ class LocalAttention2d(nn.Module):
 		self.sigmoid = nn.Sigmoid()
 		self.R = window[0]
 		self.C = window[1]
-		self.loss = nn.MSELoss()
-		self.optimizer = torch.optim.Adam(params=self.parameters(), lr=1, weight_decay=1e-5)
 	def forward(self,q,c_t):
 		if c_t is None:
 			c_t = q.new_zeros(q.size(0), 1, self.c_size)
@@ -125,17 +119,17 @@ class LocalAttention2d(nn.Module):
 		q = q.view(q.size(0),q.size(1),-1)
 		q = q.transpose(1,2)
 		r = torch.clamp(torch.stack([torch.round(p_t[...,0]).long()+row+1 
-										for row in range(-self.R,self.R+1)],dim=2),min=0,max=rows)%rows
+										for row in range(-(self.R//2),(self.R+1)//2)],dim=2),min=0,max=rows)%rows
 		c = torch.clamp(torch.stack([torch.round(p_t[...,1]).long()+col+1 
-										for col in range(-self.C,self.C+1)],dim=2),min=0,max=cols)%cols
+										for col in range(-(self.C//2),(self.C+1)//2)],dim=2),min=0,max=cols)%cols
 		s = torch.stack([r[...,i]*cols+c[...,j]
 										for i in range(r.size(-1)) 
 										for j in range(c.size(-1))],dim=2)
 		q = torch.stack([batch[idx] for batch,idx in zip(q,s)])
 		nan_loc = torch.isnan(q[...,0])
 		q[nan_loc] = 0
-		rexp = -2*torch.pow((torch.clamp(r-1,min=0).float()-p_t[...,0].unsqueeze(-1))/self.R,2)
-		cexp = -2*torch.pow((torch.clamp(c-1,min=0).float()-p_t[...,1].unsqueeze(-1))/self.C,2)
+		rexp = -2*torch.pow((torch.clamp(r-1,min=0).float()-p_t[...,0].unsqueeze(-1))/(self.R//2),2)
+		cexp = -2*torch.pow((torch.clamp(c-1,min=0).float()-p_t[...,1].unsqueeze(-1))/(self.C//2),2)
 		exp = torch.exp(torch.stack([rexp[...,i]+cexp[...,j] 
 										for i in range(rexp.size(-1)) 
 										for j in range(cexp.size(-1))],dim=2))
@@ -143,32 +137,34 @@ class LocalAttention2d(nn.Module):
 		out = (W_attn.unsqueeze(-1)*q).sum(2)
 		return out
 	def infer(self,q,c_t):
+		img = q
 		p_t = self.predictive_alignment(q.size(2), c_t)
 		q = nn.ConstantPad2d((1,0,1,0),float('nan'))(q)
 		rows, cols = q.size(2),q.size(3)
 		q = q.view(q.size(0),q.size(1),-1)
 		q = q.transpose(1,2)
 		r = torch.clamp(torch.stack([torch.round(p_t[...,0]).long()+row+1 
-										for row in range(-self.R,self.R+1)],dim=2),min=0,max=rows)%rows
+										for row in range(-(self.R//2),(self.R+1)//2)],dim=2),min=0,max=rows)%rows
 		c = torch.clamp(torch.stack([torch.round(p_t[...,1]).long()+col+1 
-										for col in range(-self.C,self.C+1)],dim=2),min=0,max=cols)%cols
+										for col in range(-(self.C//2),(self.C+1)//2)],dim=2),min=0,max=cols)%cols
 		s = torch.stack([r[...,i]*cols+c[...,j]
 										for i in range(r.size(-1)) 
 										for j in range(c.size(-1))],dim=2)
 		q = torch.stack([batch[idx] for batch,idx in zip(q,s)])
 		nan_loc = torch.isnan(q[...,0])
 		q[nan_loc] = 0
-		rexp = -2*torch.pow((torch.clamp(r-1,min=0).float()-p_t[...,0].unsqueeze(-1))/self.R,2)
-		cexp = -2*torch.pow((torch.clamp(c-1,min=0).float()-p_t[...,1].unsqueeze(-1))/self.C,2)
+		rexp = -2*torch.pow((torch.clamp(r-1,min=0).float()-p_t[...,0].unsqueeze(-1))/(self.R//2),2)
+		cexp = -2*torch.pow((torch.clamp(c-1,min=0).float()-p_t[...,1].unsqueeze(-1))/(self.C//2),2)
 		exp = torch.exp(torch.stack([rexp[...,i]+cexp[...,j] 
 										for i in range(rexp.size(-1)) 
 										for j in range(cexp.size(-1))],dim=2))
 		W_attn = self.align(q,c_t,nan_loc)*exp
 		out = (W_attn.unsqueeze(-1)*q).sum(2)
-		W_attn = W_attn.view(W_attn.size(0),W_attn.size(1),self.R*2+1,self.C*2+1)
-		s = s.view(s.size(0),s.size(1),self.R*2+1,self.C*2+1)
+		W_attn = W_attn.view(W_attn.size(0),W_attn.size(1),self.R,self.C)
+		s = s.view(s.size(0),s.size(1),self.R,self.C)
 		s = torch.stack([s//cols-1, torch.fmod(s,cols)-1],dim=4)
-		return out, (W_attn,s)
+		frames = self.word_frames(img, W_attn, s)
+		return out, frames
 	def predictive_alignment(self, S, c_t):
 		p_t = S * self.sigmoid(self.V_p(self.tanh(self.W_p(c_t))))
 		return p_t
@@ -181,24 +177,17 @@ class LocalAttention2d(nn.Module):
 		Wa = self.W_a(q)
 		a_t = torch.bmm(Wa.view(-1,Wa.size(2),Wa.size(3)),c_t.view(-1,c_t.size(2),1)).view(Wa.size(0),Wa.size(1),Wa.size(2))
 		return a_t
-	def weight_viz(self,q,W_attn,loc,caption):
-		to_img=ToPILImage()
-		fig = plt.figure(figsize=(2,1))
+	def word_frames(self,q,W_attn,loc):
+		q, W_attn, loc = q.squeeze(0), W_attn.squeeze(0), loc.squeeze(0)
 		img = q
 		q = q.permute(1,2,0)
-		images = torch.zeros(loc.size(0),3,loc.size(1),loc.size(2))
-		for i,batch in enumerate(loc):
-			temp = q[batch[...,0],batch[...,1]]
-			temp = temp.permute(2,0,1)
-			weights = W_attn[i].unsqueeze(0).repeat(3,1,1)
-			images[i] = temp*weights
-		images = images.permute(1,2,0,3).contiguous()
-		images = images.view(images.size(0), images.size(1),images.size(2)*images.size(3))
-		img = to_img(img)
-		fig.add_subplot(2,1,1)
-		plt.imshow(img)
-		fig.add_subplot(2,1,2)
-		img2 = to_img(images)
-		plt.imshow(img2)
-		plt.show()
-
+		images = torch.zeros(loc.size(0),4,loc.size(1),loc.size(2))
+		for i,frame in enumerate(loc):
+			img_rgb = q[frame[...,0],frame[...,1]]
+			img_rgb = img_rgb.permute(2,0,1)
+			img_alpha = W_attn[i].unsqueeze(0)
+			img_alpha_max = torch.max(img_alpha)
+			img_alpha_min = torch.min(img_alpha)
+			img_alpha = (img_alpha-img_alpha_min)/(img_alpha_max-img_alpha_min)
+			images[i] = torch.cat([img_rgb,img_alpha],dim=0)
+		return images
