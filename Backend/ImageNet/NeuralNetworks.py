@@ -1,9 +1,11 @@
 #dependencies
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision.models as models
 from Attention import LocalAttention2d
 from torch.nn.utils.rnn import pack_padded_sequence
+from torch.nn.utils.rnn import pad_packed_sequence
 
 #user defined modules
 from HyperParameters import options
@@ -21,7 +23,7 @@ class Image2Caption(nn.Module):
 		self.hidden_size = options['hidden_size']
 		self.align_size = options['align_size']
 		self.window = options['window']
-		#self.image_encoder = ImageEncoder(channel_size=self.channel_size)
+		self.image_encoder = ImageEncoder(channel_size=self.channel_size)
 		self.embedding = nn.Embedding(num_embeddings=self.vocab_size, 
 									  embedding_dim=self.embed_size)
 		self.bi_factor = (2 if self.bidirectional else 1)
@@ -42,40 +44,40 @@ class Image2Caption(nn.Module):
 		self.criterion = nn.CrossEntropyLoss()
 		self.softmax = nn.Softmax(1)
 	def forward(self, images, captions, lengths):
-		#features = self.image_encoder(images)
-		features = images
+		features = self.image_encoder(images)
 		captions = self.embedding(captions)
 		z_inputs = self.attention(features,captions)
-		captions = pack_padded_sequence(z_inputs,lengths,batch_first=True)
+		z_inputs = pack_padded_sequence(z_inputs,lengths,batch_first=True)
 		z_inputs,_ = self.rnn(z_inputs)
+		z_inputs,_ = pad_packed_sequence(z_inputs,batch_first=True)
 		captions = self.decoder(z_inputs)
 		captions = self.softmax(captions.transpose(1,2))
 		return captions
 	def infer(self, image):
-		#features = self.image_encoder(image)
-		features = image
+		features = self.image_encoder(image)
 		idxs = torch.zeros(1,dtype=torch.long)
 		hn = None
 		words = torch.zeros(self.max_len,dtype=torch.long)
-		frames = torch.zeros(self.max_len,4,self.window[0],self.window[0])
+		alphas = torch.zeros(features.size(0),self.max_len,features.size(2),features.size(3))
 		num_words = 0
 		for num_words in range(self.max_len):
 			caption = self.embedding(idxs.unsqueeze(0))
-			z_inputs,frame = self.attention.infer(features,caption)
-			frames[num_words] = frame
+			z_inputs,alpha = self.attention.infer(features,caption)
+			alphas[:,num_words] = alpha
 			z_inputs,hn = self.rnn(z_inputs,hn)
 			caption = self.decoder(z_inputs.squeeze(1))
 			idxs = torch.argmax(caption,1)
 			words[num_words] = idxs
 			if idxs.item() == 1:
 				break
-		frames = frames[0].unsqueeze(0) if num_words == 0 else frames[:num_words]
-		frames = frames.permute(1,2,0,3).contiguous()
-		frames = frames.view(frames.size(0), frames.size(1),frames.size(2)*frames.size(3))
+		alphas = alphas[:,0].unsqueeze(1) if num_words == 0 else alphas[:,:num_words]
+		alphas = F.interpolate(alphas, size=(image.size(2),image.size(3)), mode='nearest')
+		alphas = alphas.permute(0,2,1,3).contiguous()
+		alphas = alphas.view(alphas.size(0), alphas.size(1),alphas.size(2)*alphas.size(3))
 		words = words[0].unsqueeze(0) if num_words == 0 else words[:num_words]
 		hn = hn.transpose(0,1).contiguous()
 		summaries = hn.view(self.hidden_size*self.bi_factor)
-		return words, summaries, frames
+		return words, summaries, alphas
 
 class ImageEncoder(nn.Module):
 	def __init__(self, channel_size):
@@ -89,9 +91,6 @@ class ImageEncoder(nn.Module):
 	def forward(self, x):
 		with torch.no_grad():
 			x = self.pretrained_net(x)
-		x = x.view(x.size(0),x.size(1),-1)
-		x = x.transpose(1,2)
-		x = self.out_channel(x)
 		return x
 
 '''
