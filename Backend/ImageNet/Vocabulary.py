@@ -49,7 +49,7 @@ transform = transforms.ToTensor()
 #load data and captions in batches
 dataset = CocoCaptions(root='{}/train2017/'.format(data_dir), 
 					   annFile='{}/annotations/captions_train2017.json'.format(data_dir),
-					   idx2word_file='idx2word.h5')
+					   idx2word_file='{}/idx2word.h5'.format(data_dir))
 dataloader = DataLoader(dataset=dataset,
 						batch_size=1,
 						shuffle=False,
