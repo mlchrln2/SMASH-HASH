@@ -137,9 +137,9 @@ class LocalAttention2d(nn.Module):
 		out = (W_attn.unsqueeze(-1)*q).sum(2)
 		return out
 	def infer(self,q,c_t):
-		img = q
 		p_t = self.predictive_alignment(q.size(2), c_t)
 		q = nn.ConstantPad2d((1,0,1,0),float('nan'))(q)
+		img = q
 		rows, cols = q.size(2),q.size(3)
 		q = q.view(q.size(0),q.size(1),-1)
 		q = q.transpose(1,2)
@@ -162,9 +162,9 @@ class LocalAttention2d(nn.Module):
 		out = (W_attn.unsqueeze(-1)*q).sum(2)
 		W_attn = W_attn.view(W_attn.size(0),W_attn.size(1),self.R,self.C)
 		s = s.view(s.size(0),s.size(1),self.R,self.C)
-		s = torch.stack([s//cols-1, torch.fmod(s,cols)-1],dim=4)
-		frames = self.word_frames(img, W_attn, s)
-		return out, frames
+		s = torch.stack([s//cols, torch.fmod(s,cols)],dim=4)
+		alpha = self.alpha_frames(img, W_attn, s)
+		return out, alpha
 	def predictive_alignment(self, S, c_t):
 		p_t = S * self.sigmoid(self.V_p(self.tanh(self.W_p(c_t))))
 		return p_t
@@ -177,16 +177,9 @@ class LocalAttention2d(nn.Module):
 		Wa = self.W_a(q)
 		a_t = torch.bmm(Wa.view(-1,Wa.size(2),Wa.size(3)),c_t.view(-1,c_t.size(2),1)).view(Wa.size(0),Wa.size(1),Wa.size(2))
 		return a_t
-	def word_frames(self,q,W_attn,loc):
-		q, W_attn, loc = q.squeeze(0), W_attn.squeeze(0), loc.squeeze(0)
-		img = q
-		q = q.permute(1,2,0)
-		loc = loc.squeeze(0)
-		img_rgb = q[loc[...,0],loc[...,1]]
-		img_rgb = img_rgb.permute(2,0,1)
-		img_alpha = W_attn
-		img_alpha_max = torch.max(img_alpha)
-		img_alpha_min = torch.min(img_alpha)
-		img_alpha = (img_alpha-img_alpha_min)/(img_alpha_max-img_alpha_min)
-		images = torch.cat([img_rgb,img_alpha],dim=0)
-		return images
+	def alpha_frames(self,q,W_attn,loc):
+		W_attn, loc = W_attn.squeeze(0), loc.squeeze(0)
+		q = q.permute(0,2,3,1)
+		alpha_matrix = torch.zeros(q.size(0),q.size(1),q.size(2))
+		alpha_matrix[:,loc[...,0],loc[...,1]] = W_attn[0]
+		return alpha_matrix[:,1:,1:]
