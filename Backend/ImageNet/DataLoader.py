@@ -12,9 +12,6 @@ import h5py
 #user defined modules
 from HyperParameters import options
 
-idx2word_file = 'idx2word.h5'
-idx2word = h5py.File(idx2word_file, 'r')
-
 class CocoDataset(data.Dataset):
 	"""`MS Coco Captions <http://mscoco.org/dataset/#captions-challenge2015>`_ Dataset.
 
@@ -90,6 +87,10 @@ transform = transforms.Compose([
 
 #dataset location in memory
 data_dir = options['data_dir']
+
+#load the idx2word dictionary
+idx2word_file = '{}/idx2word.h5'.format(data_dir)
+idx2word = h5py.File(idx2word_file, 'r')
 
 #load data and captions in batches
 dataset = CocoDataset(root='{}/train2017/'.format(data_dir), 
