@@ -44,5 +44,6 @@ for epoch in range(num_epochs):
 		model.optimizer.step()
 		error += loss.detach().item()
 		print('epoch {} of {} --- iteration {} of {}'.format(epoch+1, num_epochs, i+1, len(dataloader)), end='\r')
+		if (i+1)%600 == 0:
+			torch.save(model,'img_embedding_model.pth')
 	writer.add_scalar('data/train_loss', error/len(dataloader), epoch)
-	torch.save(model,'img_embedding_model.pth')
