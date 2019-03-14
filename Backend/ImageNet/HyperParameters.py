@@ -3,7 +3,7 @@ options = {
 	'batch_size'    : 16,
 	'num_epochs'    : 100,
 	'channel_size'  : 512,
-	'vocab_size'    : 29549,
+	'vocab_size'    : 29550,
 	'embed_size'    : 512,
 	'hidden_size'   : 512,
 	'bidirectional' : False,
