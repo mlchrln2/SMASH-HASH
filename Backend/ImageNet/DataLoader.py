@@ -93,7 +93,7 @@ idx2word_file = '{}/idx2word.h5'.format(data_dir)
 idx2word = h5py.File(idx2word_file, 'r')
 
 #load data and captions in batches
-dataset = CocoDataset(root='{}/train2017/'.format(data_dir), 
+train_dataset = CocoDataset(root='{}/train2017/'.format(data_dir), 
 					  annFile='{}/annotations/captions_train2017.json'.format(data_dir),
 					  filename='{}/coco_annotations.h5'.format(data_dir),
 					  transform=transform)
@@ -102,14 +102,20 @@ dataset = CocoDataset(root='{}/train2017/'.format(data_dir),
 batch_size = options['batch_size']
 
 #batch data loader
-train_loader = DataLoader(dataset=dataset, 
+train_loader = DataLoader(dataset=train_dataset, 
 						batch_size=batch_size,
 						collate_fn=collate,
 						shuffle=True,
 						drop_last=True)
 
+#load data and captions in batches
+test_dataset = CocoDataset(root='{}/train2017/'.format(data_dir), 
+					  annFile='{}/annotations/captions_train2017.json'.format(data_dir),
+					  filename='{}/coco_annotations.h5'.format(data_dir),
+					  transform=transform)
+
 #1 batch data loader
-test_loader = DataLoader(dataset=dataset, 
+test_loader = DataLoader(dataset=test_dataset, 
 						batch_size=1,
 						collate_fn=collate,
 						shuffle=False,
