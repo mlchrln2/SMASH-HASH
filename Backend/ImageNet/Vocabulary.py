@@ -67,5 +67,5 @@ word2idx[unk_word] = 2
 
 print('loading dictionary...')
 for itr in dataloader:
-	print('{} words loaded into vocabulary'.format(itr.item()), end='\r')
+	print('{} words loaded into vocabulary'.format(itr.item()+1), end='\r')
 print('complete')
