@@ -49,7 +49,7 @@ model = torch.load('img_embedding_model.pth')
 print('Note model parameters:\n{}'.format(model.parameters))
 
 #create a logger
-writer = SummaryWriter('ImageNetSummary/')
+writer = SummaryWriter()
 #writer.add_graph(model, (torch.randn(1,3,224,224), torch.randint(20,(1,20),dtype=torch.long)),vervose=True)
 
 error = 0
