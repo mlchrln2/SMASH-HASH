@@ -137,6 +137,8 @@ class LocalAttention2d(nn.Module):
 		out = (W_attn.unsqueeze(-1)*q).sum(2)
 		return out
 	def infer(self,q,c_t):
+		if c_t is None:
+			c_t = q.new_zeros(q.size(0), 1, self.c_size)
 		p_t = self.predictive_alignment(q.size(2), c_t)
 		q = nn.ConstantPad2d((1,0,1,0),float('nan'))(q)
 		img = q
