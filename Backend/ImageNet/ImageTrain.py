@@ -8,6 +8,8 @@ import sys
 from HyperParameters import options
 from NeuralNetworks import Image2Caption
 from DataLoader import train_loader as dataloader
+from pack_padded_sequence import pack_padded_sequence
+
 
 #modules used for testing and viewing
 import numpy as np
@@ -38,12 +40,15 @@ for epoch in range(num_epochs):
 	error = 0
 	gc.collect()
 	for i,(img,labels,lengths) in enumerate(dataloader):
-		predictions = model(img,labels[:,:-1], lengths)
-		loss = model.criterion(predictions,labels[:,1:])
+		model.optimizer.zero_grad()
+		predictions = model(img,labels[:,:-1], lengths-1)
+		predictions = pack_padded_sequence(predictions,lengths-1,batch_first=True)[0]
+		labels = pack_padded_sequence(labels[:,1:],lengths-1,batch_first=True)[0]
+		loss = model.criterion(predictions,labels)
 		loss.backward()
 		model.optimizer.step()
 		error += loss.detach().item()
-		print('epoch {} of {} --- iteration {} of {}'.format(epoch+1, num_epochs, i+1, len(dataloader)), end='\r')
-		if (i+1)%8 == 0:
+		if (i+1)%600 == 0:
 			torch.save(model,'img_embedding_model.pth')
+			print('epoch {} of {} --- iteration {} of {}'.format(epoch+1, num_epochs, i+1, len(dataloader)), end='\r')
 	writer.add_scalar('data/train_loss', error/len(dataloader), epoch)
