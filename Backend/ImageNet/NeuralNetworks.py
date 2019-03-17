@@ -5,7 +5,6 @@ import torch.nn.functional as F
 import torchvision.models as models
 from Attention import LocalAttention2d
 from pack_padded_sequence import pack_padded_sequence
-from torch.nn.utils.rnn import pad_packed_sequence
 
 #user defined modules
 from HyperParameters import options
@@ -17,72 +16,69 @@ class Image2Caption(nn.Module):
 		self.embed_size = options['embed_size']
 		self.vocab_size = options['vocab_size']
 		self.max_len = options['max_len']
-		self.bidirectional = options['bidirectional']
-		self.num_layers = options['num_layers']
 		self.LR = options['learning_rate']
 		self.hidden_size = options['hidden_size']
-		self.align_size = options['align_size']
 		self.window = options['window']
+		self.drop = options['drop']
 		self.image_encoder = ImageEncoder(channel_size=self.channel_size)
 		self.embedding = nn.Embedding(num_embeddings=self.vocab_size, 
 									  embedding_dim=self.embed_size)
-		self.bi_factor = (2 if self.bidirectional else 1)
+		self.dropout = nn.Dropout(self.drop)
 		self.attention = LocalAttention2d(query_size=self.channel_size,
-								   		  context_size=self.bi_factor*self.hidden_size,
-								   		  align_size=self.align_size,
+								   		  context_size=self.hidden_size,
 								   		  window=self.window)
-		self.rnn = nn.GRU(input_size=self.channel_size+self.embed_size,
-						  hidden_size=self.hidden_size,
-						  bidirectional=self.bidirectional,
-						  num_layers=self.num_layers,
-						  batch_first=True)
-		self.decoder = nn.Linear(in_features=self.hidden_size*self.bi_factor, 
+		self.rnn = nn.GRUCell(input_size=self.channel_size+self.embed_size,
+							  hidden_size=self.hidden_size)
+		self.decoder = nn.Linear(in_features=self.hidden_size, 
 								 out_features=self.vocab_size)
-		self.optimizer = torch.optim.Adam(params=self.parameters(), 
+		self.decoder_dropout = nn.Dropout(self.drop)
+		self.optimizer = torch.optim.Adam(params=self.parameters(),
 										  lr=self.LR)
 		self.criterion = nn.CrossEntropyLoss()
 		self.softmax = nn.Softmax(1)
 	def forward(self, images, captions, lengths):
 		features = self.image_encoder(images)
 		captions = self.embedding(captions)
+		captions = self.dropout(captions)
 		captions = captions.transpose(0,1)
-		outputs = torch.zeros(features.size(0),self.vocab_size,captions.size(0))
-		hn,cn = None,None
+		hn = torch.zeros(features.size(0),self.hidden_size)
+		outputs = torch.zeros(features.size(0),captions.size(0),self.vocab_size)
+		batch = len(lengths)
+		batch_item = lengths[batch-1].item()
 		for i,cap in enumerate(captions):
-			feats = self.attention(features,cn)
-			z_inputs = torch.cat((feats,cap.unsqueeze(1)),2)
-			hn,_ = self.rnn(z_inputs,hn)
-			outputs[...,i] = self.decoder(hn.squeeze(1))
-			cn = hn
-			hn = hn.transpose(0,1).view(self.bi_factor,-1,self.hidden_size)
+			while i+1 > batch_item and batch > 1:
+				batch -= 1
+				batch_item = lengths[batch-1].item()
+			cap = cap[:batch]
+			hn = hn[:batch]
+			feats = self.attention(features[:batch],hn)
+			z_inputs = torch.cat((feats,cap),1)
+			hn = self.rnn(z_inputs,hn)
+			out = self.decoder_dropout(hn)
+			outputs[:batch,i] = self.decoder(out)
 		return outputs
 	def infer(self, image):
 		features = self.image_encoder(image)
 		idxs = torch.zeros(1,dtype=torch.long)
+		num_words = 0
 		words = torch.zeros(self.max_len,dtype=torch.long)
 		alphas = torch.zeros(features.size(0),self.max_len,features.size(2),features.size(3))
-		hn,cn = None,None
-		num_words = 0
+		hn = torch.zeros(features.size(0),self.hidden_size)
 		for num_words in range(self.max_len):
 			if idxs.item() == 1:
 				break
-			cap = self.embedding(idxs.unsqueeze(0))
-			feats,alpha = self.attention.infer(features,cn)
-			z_inputs = torch.cat((feats,cap),2)
-			hn,_ = self.rnn(z_inputs,hn)
-			output = self.decoder(hn.squeeze(1))
-			cn = hn
-			hn = hn.transpose(0,1).view(self.bi_factor,-1,self.hidden_size)
+			feats,alpha = self.attention.infer(features,hn)
+			cap = self.embedding(idxs)
+			z_inputs = torch.cat((feats,cap),1)
+			hn = self.rnn(z_inputs,hn)
+			output = self.decoder(hn)
 			idxs = torch.argmax(output,1)
 			words[num_words] = idxs
 			alphas[:,num_words] = alpha
 		alphas = alphas[:,0].unsqueeze(1) if num_words == 0 else alphas[:,:num_words]
 		alphas = F.interpolate(alphas, size=(image.size(2),image.size(3)), mode='nearest')
-		alphas = alphas.permute(0,2,1,3).contiguous()
-		alphas = alphas.view(alphas.size(0), alphas.size(1),alphas.size(2)*alphas.size(3))
-		words = words[:num_words]
-		hn = hn.transpose(0,1).contiguous()
-		summaries = hn.view(self.hidden_size*self.bi_factor)
+		words = words[0].unsqueeze(0) if num_words == 0 else words[:num_words]
+		summaries = hn
 		return words, summaries, alphas
 
 class ImageEncoder(nn.Module):
@@ -92,11 +88,13 @@ class ImageEncoder(nn.Module):
 		pretrained_net = models.vgg16(pretrained=True).features
 		modules = list(pretrained_net.children())[:29]
 		self.pretrained_net = nn.Sequential(*modules)
-		self.out_channel = nn.Linear(in_features=modules[-1].in_channels,
-									 out_features=self.channel_size)
+
+		self.bn = nn.BatchNorm2d(num_features=modules[-1].in_channels,
+								 momentum=0.01)
 	def forward(self, x):
 		with torch.no_grad():
 			x = self.pretrained_net(x)
+		x = self.bn(x)
 		return x
 
 '''
