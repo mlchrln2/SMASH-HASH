@@ -12,7 +12,7 @@ import h5py
 #user defined modules
 from HyperParameters import options
 
-class CocoDataset(data.Dataset):
+class CocoTrain(data.Dataset):
 	"""`MS Coco Captions <http://mscoco.org/dataset/#captions-challenge2015>`_ Dataset.
 
 	Args:
@@ -23,7 +23,7 @@ class CocoDataset(data.Dataset):
 		target_transform (callable, optional): A function/transform that takes in the
 			target and transforms it.
 	"""
-	def __init__(self, root, annFile, filename, transform=None, target_transform=None):
+	def __init__(self, root, annFile, filename, transform=None, normalize=None, target_transform=None):
 		from pycocotools.coco import COCO
 		self.root = os.path.expanduser(root)
 		self.coco = COCO(annFile)
@@ -31,6 +31,7 @@ class CocoDataset(data.Dataset):
 		self.filename = filename
 		self.coco_dataset = h5py.File(self.filename, 'r')
 		self.transform = transform
+		self.normalize = normalize
 		self.target_transform = target_transform
 
 	def __getitem__(self, index):
@@ -50,6 +51,8 @@ class CocoDataset(data.Dataset):
 		targets = torch.from_numpy(target_loc[rand_idx].astype(int))
 		if self.transform is not None:
 			img = self.transform(img)
+		if self.normalize is not None:
+			img = self.normalize(img)
 		if self.target_transform is not None:
 			targets = self.target_transform(targets)
 		lengths = targets[-1]+2
@@ -58,6 +61,58 @@ class CocoDataset(data.Dataset):
 
 	def __len__(self):
 		return len(self.ids)
+
+class CocoTest(data.Dataset):
+	"""`MS Coco Captions <http://mscoco.org/dataset/#captions-challenge2015>`_ Dataset.
+
+	Args:
+		root (string): Root directory where images are downloaded to.
+		annFile (string): Path to json annotation file.
+		transform (callable, optional): A function/transform that  takes in an PIL image
+			and returns a transformed version. E.g, ``transforms.ToTensor``
+		target_transform (callable, optional): A function/transform that takes in the
+			target and transforms it.
+	"""
+	def __init__(self, root, annFile, filename, transform=None, normalize=None,  target_transform=None):
+		from pycocotools.coco import COCO
+		self.root = os.path.expanduser(root)
+		self.coco = COCO(annFile)
+		self.ids = list(self.coco.imgs.keys())
+		self.filename = filename
+		self.coco_dataset = h5py.File(self.filename, 'r')
+		self.transform = transform
+		self.normalize = normalize
+		self.target_transform = target_transform
+
+	def __getitem__(self, index):
+		"""
+		Args:
+			index (int): Index
+
+		Returns:
+			tuple: Tuple (image, target). target is a list of captions for the image.
+		"""
+		coco = self.coco
+		img_id = self.ids[index]
+		path = coco.loadImgs(img_id)[0]['file_name']
+		img = Image.open(os.path.join(self.root, path)).convert('RGB')
+		target_loc = self.coco_dataset[str(index)]
+		rand_idx = 0
+		targets = torch.from_numpy(target_loc[rand_idx].astype(int))
+		image = img
+		if self.transform is not None:
+			image = self.transform(image)
+		if self.normalize is not None:
+			img = self.normalize(image.clone())
+		if self.target_transform is not None:
+			targets = self.target_transform(targets)
+		lengths = targets[-1]+2
+		captions = targets[:(lengths)]
+		return image, img, captions, lengths
+
+	def __len__(self):
+		return len(self.ids)
+
 
 def collate(batch):
 	'''pads the data with 0's'''
@@ -81,6 +136,9 @@ transform = transforms.Compose([
 	transforms.RandomCrop(224),                      # get 224x224 crop from random location
 	transforms.RandomHorizontalFlip(),               # horizontally flip image with probability=0.5
 	transforms.ToTensor(),                           # convert the PIL Image to a tensor
+])
+
+normalize = transforms.Compose([
 	transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
 						 (0.229, 0.224, 0.225))
 ])
@@ -93,13 +151,15 @@ idx2word_file = '{}/idx2word.h5'.format(data_dir)
 idx2word = h5py.File(idx2word_file, 'r')
 
 #load data and captions in batches
-train_dataset = CocoDataset(root='{}/train2017/'.format(data_dir), 
+train_dataset = CocoTrain(root='{}/train2017/'.format(data_dir), 
 					  annFile='{}/annotations/captions_train2017.json'.format(data_dir),
 					  filename='{}/coco_annotations.h5'.format(data_dir),
-					  transform=transform)
+					  transform=transform,
+					  normalize=normalize)
 
 #number of batches in one load
 batch_size = options['batch_size']
+
 
 #batch data loader
 train_loader = DataLoader(dataset=train_dataset, 
@@ -108,15 +168,25 @@ train_loader = DataLoader(dataset=train_dataset,
 						shuffle=True,
 						drop_last=True)
 
+
+transform = transforms.Compose([ 
+	transforms.ToTensor(),                           # convert the PIL Image to a tensor
+])
+
+normalize = transforms.Compose([
+	transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
+						 (0.229, 0.224, 0.225))
+])
+
 #load data and captions in batches
-test_dataset = CocoDataset(root='{}/train2017/'.format(data_dir), 
+test_dataset = CocoTest(root='{}/train2017/'.format(data_dir), 
 					  annFile='{}/annotations/captions_train2017.json'.format(data_dir),
 					  filename='{}/coco_annotations.h5'.format(data_dir),
-					  transform=transform)
+					  transform=transform,
+					  normalize=normalize)
 
 #1 batch data loader
 test_loader = DataLoader(dataset=test_dataset, 
 						batch_size=1,
-						collate_fn=collate,
 						shuffle=False,
 						drop_last=True)
