@@ -8,7 +8,7 @@ options = {
 	'hidden_size'   : 512,
 	'max_len'	    : 20,
 	'drop'			: 0.5,
-	'window'        : (7,7),
+	'window'        : (11,11),
 	'start_word'    : '<START>',
 	'end_word'      : '<END>',
 	'unk_word'      : '<UNK>',
