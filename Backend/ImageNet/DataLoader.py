@@ -166,7 +166,8 @@ train_loader = DataLoader(dataset=train_dataset,
 						batch_size=batch_size,
 						collate_fn=collate,
 						shuffle=True,
-						drop_last=True)
+						drop_last=True,
+						num_workers=2)
 
 
 transform = transforms.Compose([ 
@@ -189,4 +190,5 @@ test_dataset = CocoTest(root='{}/train2017/'.format(data_dir),
 test_loader = DataLoader(dataset=test_dataset, 
 						batch_size=1,
 						shuffle=False,
-						drop_last=True)
+						drop_last=True,
+						num_workers=2)
