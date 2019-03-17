@@ -108,74 +108,73 @@ class LocalAttention2d(nn.Module):
 	def forward(self,q,c_t):
 		if c_t is None:
 			c_t = q.new_zeros(q.size(0), self.c_size)
-		p_t = self.predictive_alignment(q.size(2), c_t)
 		q = nn.ConstantPad2d((1,0,1,0),float('nan'))(q)
 		rows, cols = q.size(2),q.size(3)
-		q = q.view(q.size(0),q.size(1),-1)
-		q = q.transpose(1,2)
+		p_x_t, p_y_t = self.predictive_alignment(rows-2,cols-2, c_t)
 		r = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch-(self.R//2)+1,p_batch+(self.R+1)//2+1) 
-			for p_batch in torch.round(p_t[:,0]).long()]),min=0,max=rows),rows)
-		c = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch-(self.R//2)+1,p_batch+(self.R+1)//2+1) 
-			for p_batch in torch.round(p_t[:,1]).long()]),min=0,max=rows),rows)
+			for p_batch in torch.round(p_x_t).long()]),min=0,max=rows),rows)
+		c = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch-(self.C//2)+1,p_batch+(self.C+1)//2+1) 
+			for p_batch in torch.round(p_y_t).long()]),min=0,max=cols),cols)
 		s = torch.stack([r[:,i]*cols+c[:,j]
 						for i in range(r.size(-1)) 
 						for j in range(c.size(-1))],dim=1)
-		q = torch.stack([batch[idx] for batch,idx in zip(q,s)])
-		nan_loc = torch.isnan(q[...,0])
-		q[nan_loc] = 0
-		rexp = 2*torch.pow((torch.clamp(r-1,min=0).float()-p_t[:,0].unsqueeze(-1))/(self.R//2),2)
-		cexp = 2*torch.pow((torch.clamp(c-1,min=0).float()-p_t[:,1].unsqueeze(-1))/(self.C//2),2)
-		shift = torch.stack([rexp[...,i]+cexp[...,j]
+		rexp = 2*torch.pow((torch.clamp(r-1,min=0).float()-p_x_t.unsqueeze(-1))/(self.R//2),2)
+		cexp = 2*torch.pow((torch.clamp(c-1,min=0).float()-p_y_t.unsqueeze(-1))/(self.C//2),2)
+		sexp = torch.stack([rexp[...,i]+cexp[...,j]
 							for i in range(rexp.size(-1)) 
 							for j in range(cexp.size(-1))],dim=1)
-		W_attn = self.align(q,c_t,nan_loc,shift)
+		q = q.view(q.size(0),q.size(1),-1)
+		q = q.transpose(1,2)
+		q = torch.stack([batch[idx] for batch,idx in zip(q,s)])
+		W_attn = self.align(q,c_t,sexp)
 		out = torch.bmm(W_attn.transpose(1,2),q).squeeze(1)
 		return out
 	def infer(self,q,c_t):
 		if c_t is None:
 			c_t = q.new_zeros(q.size(0), self.c_size)
-		p_t = self.predictive_alignment(q.size(2), c_t)
 		q = nn.ConstantPad2d((1,0,1,0),float('nan'))(q)
-		img = q
 		rows, cols = q.size(2),q.size(3)
-		q = q.view(q.size(0),q.size(1),-1)
-		q = q.transpose(1,2)
+		p_x_t, p_y_t = self.predictive_alignment(rows-2,cols-2, c_t)
 		r = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch-(self.R//2)+1,p_batch+(self.R+1)//2+1) 
-			for p_batch in torch.round(p_t[:,0]).long()]),min=0,max=rows),rows)
-		c = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch-(self.R//2)+1,p_batch+(self.R+1)//2+1) 
-			for p_batch in torch.round(p_t[:,1]).long()]),min=0,max=rows),rows)
+			for p_batch in torch.round(p_x_t).long()]),min=0,max=rows),rows)
+		c = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch-(self.C//2)+1,p_batch+(self.C+1)//2+1) 
+			for p_batch in torch.round(p_y_t).long()]),min=0,max=cols),cols)
 		s = torch.stack([r[:,i]*cols+c[:,j]
 						for i in range(r.size(-1)) 
 						for j in range(c.size(-1))],dim=1)
-		q = torch.stack([batch[idx] for batch,idx in zip(q,s)])
-		nan_loc = torch.isnan(q[...,0])
-		q[nan_loc] = 0
-		rexp = 2*torch.pow((torch.clamp(r-1,min=0).float()-p_t[:,0].unsqueeze(-1))/(self.R//2),2)
-		cexp = 2*torch.pow((torch.clamp(c-1,min=0).float()-p_t[:,1].unsqueeze(-1))/(self.C//2),2)
-		shift = torch.stack([rexp[...,i]+cexp[...,j]
+		rexp = 2*torch.pow((torch.clamp(r-1,min=0).float()-p_x_t.unsqueeze(-1))/(self.R//2),2)
+		cexp = 2*torch.pow((torch.clamp(c-1,min=0).float()-p_y_t.unsqueeze(-1))/(self.C//2),2)
+		sexp = torch.stack([rexp[...,i]+cexp[...,j]
 							for i in range(rexp.size(-1)) 
 							for j in range(cexp.size(-1))],dim=1)
-		W_attn = self.align(q,c_t,nan_loc,shift)
+		q = q.view(q.size(0),q.size(1),-1)
+		q = q.transpose(1,2)
+		q = torch.stack([batch[idx] for batch,idx in zip(q,s)])
+		W_attn = self.align(q,c_t,sexp)
 		out = torch.bmm(W_attn.transpose(1,2),q).squeeze(1)
 		W_attn = W_attn.view(W_attn.size(0),self.R,self.C)
-		s = s.view(s.size(0),self.R,self.C)
-		s = torch.stack([s//cols, torch.fmod(s,cols)],dim=3)
-		alpha = self.alpha_frames(img, W_attn, s)
+		s = torch.stack([torch.div(s,cols).long(), torch.fmod(s,cols).long()],dim=2)
+		s = s.view(s.size(0),self.R,self.C,2)
+		alpha = self.alpha_frames(rows,cols,W_attn,s)
 		return out, alpha
-	def predictive_alignment(self, S, c_t):
-		p_t = S * self.sigmoid(self.W_p(c_t))
-		return p_t
-	def align(self,q,c_t,nan_loc,shift):
-		a_t = self.score(q,c_t) - shift.unsqueeze(2)
+	def predictive_alignment(self,S_x,S_y,c_t):
+		loc = self.sigmoid(self.W_p(c_t))
+		p_x_t = loc[:,0]*S_x
+		p_y_t = loc[:,1]*S_y
+		return p_x_t, p_y_t
+	def align(self,q,c_t,sexp):
+		nan_loc = torch.isnan(q[...,0])
+		q[nan_loc] = 0
+		a_t = self.score(q,c_t)
 		a_t[nan_loc] = -float('inf')
-		W_attn = self.softmax(a_t)
+		W_attn = self.softmax(a_t-sexp.unsqueeze(2))
 		return W_attn
 	def score(self,q,c_t):
 		a_t = torch.bmm(self.W_a(q),c_t.unsqueeze(2))
 		return a_t
-	def alpha_frames(self,q,W_attn,loc):
-		W_attn, loc = W_attn.squeeze(0), loc.squeeze(0)
-		q = q.permute(0,2,3,1)
-		alpha_matrix = torch.zeros(q.size(0),q.size(1),q.size(2))
-		alpha_matrix[:,loc[...,0],loc[...,1]] = W_attn[0]
-		return alpha_matrix[:,1:,1:]
+	def alpha_frames(self,rows,cols,W_attn,loc):
+		W_attn = W_attn.squeeze(0)
+		loc = loc.squeeze(0)
+		alpha_matrix = torch.zeros(rows,cols)
+		alpha_matrix[loc[...,0],loc[...,1]] = W_attn
+		return alpha_matrix[1:,1:].unsqueeze(0)
