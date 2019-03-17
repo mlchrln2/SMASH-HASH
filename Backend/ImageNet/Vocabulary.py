@@ -30,6 +30,7 @@ class CocoCaptions(data.Dataset):
 		img_id = self.ids[index]
 		ann_ids = coco.getAnnIds(imgIds=img_id)
 		anns = coco.loadAnns(ann_ids)
+		anns = [anns[0]]
 		for ann in anns:
 			for word in nltk.tokenize.word_tokenize(str(ann['caption']).lower()):
 				if not word in word2idx.keys():
@@ -68,4 +69,5 @@ word2idx[unk_word] = 2
 print('loading dictionary...')
 for itr in dataloader:
 	print('{} words loaded into vocabulary'.format(itr.item()+1), end='\r')
+print('{} words loaded into vocabulary'.format(itr.item()+1))
 print('complete')
