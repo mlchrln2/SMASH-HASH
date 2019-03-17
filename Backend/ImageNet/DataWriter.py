@@ -30,6 +30,7 @@ class AnnotationWriter(data.Dataset):
 		img_id = self.ids[index]
 		ann_ids = coco.getAnnIds(imgIds=img_id)
 		anns = coco.loadAnns(ann_ids)
+		anns = [anns[0]]
 		counts = torch.tensor([[i+1,len(nltk.tokenize.word_tokenize(str(ann['caption']).lower()))] for i,ann in enumerate(anns)])
 		(max_i,max_j),_ = torch.max(counts,0)
 		counts = counts[:,1].unsqueeze(1)
@@ -64,4 +65,5 @@ dataset = AnnotationWriter(root='{}/train2017/'.format(data_dir),
 gc.collect()
 for i,_ in enumerate(dataset):
 	print('annotation {} of {} loaded'.format(i, len(dataset)),end='\r')
+print('annotation {} of {} loaded'.format(i, len(dataset)))
 print('complete')
