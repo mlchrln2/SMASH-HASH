@@ -1,54 +1,61 @@
-#dependencies
-import torch
-from tensorboardX import SummaryWriter
+'''Main method for training the network outlined in NeuralNetworks.py and Attention.py'''
+
+# dependencies
 import gc
 import sys
+import torch
+from tensorboardX import SummaryWriter
 
-#user defined modules
-from HyperParameters import options
+# user defined modules
+from HyperParameters import OPTIONS
 from NeuralNetworks import Image2Caption
-from DataLoader import train_loader as dataloader
+from DataLoader import TRAIN_LOADER as DATALOADER
 from pack_padded_sequence import pack_padded_sequence
 
+# load in hyper-parameters from python file
+NUM_EPOCHS = OPTIONS['num_epochs']
+ITR_SAVE = OPTIONS['itr_save']
 
-#modules used for testing and viewing
-import numpy as np
-import matplotlib.pyplot as plt
-from torchvision.transforms import ToPILImage
+# initialize model and loss function
+MODEL = None
 
-
-#load in hyper-parameters from python file
-num_epochs = options['num_epochs']
-batch_size = options['batch_size']
-learning_rate = options['learning_rate']
-
-#initialize model and loss function
-model = None
+''' to continue training a previously saved model type: "python ImageTrain.py continue"
+to start training a new model type: "python ImageTrain.py restart"'''
 
 if sys.argv[1] == 'continue':
-    model = torch.load('img_embedding_model.pth')
-#to start training a new model type: "python filename restart"
+    MODEL = torch.load('img_embedding_model.pth')
 elif sys.argv[1] == 'restart':
-    model = Image2Caption()
-print('Note model parameters:\n{}'.format(model.parameters))
+    MODEL = Image2Caption()
+print('Note model parameters:\n{}'.format(MODEL.parameters))
 
-#create a logger
-writer = SummaryWriter()
-#writer.add_graph(model, (torch.randn(1,3,224,224), torch.randint(20,(1,1),dtype=torch.long),torch.randint(1,(1,1),dtype=torch.long)),verbose=True)
+# create a logger
+WRITER = SummaryWriter()
+'''
+WRITER.add_graph(MODEL,
+(torch.randn(1,3,224,224), torch.tensor([[0]]),torch.tensor([1])),verbose=True)
+'''
 
-for epoch in range(num_epochs):
-	error = 0
-	gc.collect()
-	for i,(img,labels,lengths) in enumerate(dataloader):
-		model.optimizer.zero_grad()
-		predictions = model(img,labels[:,:-1], lengths-1)
-		predictions = pack_padded_sequence(predictions,lengths-1,batch_first=True)[0]
-		labels = pack_padded_sequence(labels[:,1:],lengths-1,batch_first=True)[0]
-		loss = model.criterion(predictions,labels)
-		loss.backward()
-		model.optimizer.step()
-		error += loss.detach().item()
-		if (i+1)%600 == 0:
-			torch.save(model,'img_embedding_model.pth')
-		print('epoch {} of {} --- iteration {} of {}'.format(epoch+1, num_epochs, i+1, len(dataloader)), end='\r')
-	writer.add_scalar('data/train_loss', error/len(dataloader), epoch)
+'''train model and update the weights using the pack padded outputs with the pack padded labels.
+Save the model every ITR_SAVE iterations so that the program can be killed if needed.'''
+
+for epoch in range(NUM_EPOCHS):
+    error = 0
+    for i, (img, labels, lengths) in enumerate(DATALOADER):
+        gc.collect()
+        MODEL.optimizer.zero_grad()
+        predictions = MODEL(img, labels[:, :-1], lengths - 1)
+        predictions = pack_padded_sequence(
+            predictions, lengths - 1, batch_first=True)[0]
+        labels = pack_padded_sequence(
+            labels[:, 1:], lengths - 1, batch_first=True)[0]
+        loss = MODEL.criterion(predictions, labels)
+        loss.backward()
+        MODEL.optimizer.step()
+        error += loss.detach().item()
+        if (i + 1) % ITR_SAVE == 0:
+            torch.save(MODEL, 'img_embedding_model.pth')
+        print('epoch {} of {} --- iteration {} of {}'.format(epoch + 1, NUM_EPOCHS,
+                                                             i + 1, len(DATALOADER)),
+              end='\r')
+    torch.save(MODEL, 'img_embedding_model.pth')
+    WRITER.add_scalar('data/train_loss', error / len(DATALOADER), epoch)

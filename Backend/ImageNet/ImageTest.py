@@ -1,57 +1,68 @@
-#dependencies
+'''Main method for validating the results once a model is deployed at the end of every
+training epoch'''
+
+# dependencies
+import gc
 import torch
 from tensorboardX import SummaryWriter
-import gc
 
-#user defined modules
-from HyperParameters import options
-from NeuralNetworks import Image2Caption
-from DataLoader import test_loader as dataloader
-from DataLoader import idx2word
-
-#modules used for testing and viewing
+# modules used for testing and viewing
 import matplotlib.pyplot as plt
 from torchvision.transforms import ToPILImage
-import skimage.transform
 
-#set up a method for drawing the images
-to_img=ToPILImage()
+# user defined modules
+from DataLoader import TEST_LOADER as dataloader
+from DataLoader import IDX2WORD
 
 
-def plot(img,alphas,caption,i):
-	alphas = alphas.squeeze(0)
-	width = alphas.size(0)
-	fig = plt.figure(i,figsize=(10,width))
-	ax1 = fig.add_subplot(2,1,1)
-	image = to_img(img.squeeze(0))
-	plt.imshow(image)
-	for j in range(width):
-		fig.add_subplot(2,width,j+width+1)
-		plt.title(caption[j])
-		plt.imshow(image)
-		alpha = to_img(alphas[j].unsqueeze(0))
-		plt.imshow(alpha,cmap='gray',alpha=.5)
-	plt.show()
-	writer.add_figure('plot_{}'.format(i), fig, i, True)
-	plt.close()
+# set up a method for drawing the images
+TO_IMG = ToPILImage()
 
-#load in hyper-parameters from python file
-num_epochs = options['num_epochs']
-batch_size = 1
-learning_rate = options['learning_rate']
 
-#initialize model and loss function
-model = torch.load('img_embedding_model.pth')
-print('Note model parameters:\n{}'.format(model.parameters))
+def plot(pics, alps, caption, caps, fig_num):
+    '''A method for plotting the image locations attended to by the model and the corresponding
+    captions.'''
+    alps = alps.squeeze(0)
+    width = alps.size(0)
+    fig = plt.figure(fig_num, figsize=(10, width))
+    fig.add_subplot(2, 1, 1)
+    pics = TO_IMG(pics.squeeze(0))
+    plt.title(" ".join(caps))
+    plt.imshow(pics)
+    for k in range(width):
+        fig.add_subplot(2, width, k + width + 1)
+        plt.title(caption[k])
+        plt.imshow(pics)
+        alpha = TO_IMG(alps[k].unsqueeze(0))
+        plt.imshow(alpha, cmap='gray', alpha=.5)
+    plt.show()
+    WRITER.add_figure('plot_{}'.format(fig_num), fig, fig_num, True)
+    plt.close()
 
-#create a logger
-writer = SummaryWriter()
-#writer.add_graph(model, (torch.randn(1,3,224,224), torch.randint(20,(1,20),dtype=torch.long)),vervose=True)
+# initialize model and loss function
+MODEL = torch.load('img_embedding_model.pth')
+# print('Note model parameters:\n{}'.format(MODEL.parameters))
 
-error = 0
+# create a logger
+WRITER = SummaryWriter()
+
+'''
+WRITER.add_graph(MODEL, (torch.randn(1, 3, 224, 224), torch.randint(20, (1, 20), dtype=torch.long)),
+				 vervose=True)
+'''
+
 gc.collect()
-for i,(image,img,labels,lengths) in enumerate(dataloader):
-	words, summaries, alphas = model.infer(img)
-	sentence = [idx2word[str(word.item())].value.decode("utf-8") for word in words]
-	plot(image, alphas, sentence,i)
-	print('iteration {} of {}'.format(i+1, len(dataloader)), end='\r')
+# inference method that tests the top-k captions for the model
+for i, (image, img, labels, lengths) in enumerate(dataloader):
+    labels = labels.squeeze(0)[1:-1]
+    all_words, all_summaries, all_alphas = MODEL.infer_beam(img)
+    for j, _ in enumerate(all_words):
+        words, summaries, alphas = all_words[
+            j], all_summaries[j].unsqueeze(0), all_alphas[j]
+        print(words.size(), summaries.size(), alphas.size())
+        sentence = [IDX2WORD[str(word.item())].value.decode(
+            "utf-8") for word in words]
+        phrase = [IDX2WORD[str(word.item())].value.decode("utf-8")
+                  for word in labels]
+        plot(image, alphas, sentence, phrase, i)
+    print('iteration {} of {}'.format(i + 1, len(dataloader)), end='\r')
