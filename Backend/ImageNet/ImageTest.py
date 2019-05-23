@@ -43,6 +43,9 @@ def plot(pics, alps, caption, caps, fig_num):
 MODEL = torch.load('img_embedding_model.pth')
 # print('Note model parameters:\n{}'.format(MODEL.parameters))
 
+# set the mode to train
+MODEL.eval()
+
 # create a logger
 WRITER = SummaryWriter()
 
@@ -55,7 +58,7 @@ gc.collect()
 # inference method that tests the top-k captions for the model
 for i, (image, img, labels, lengths) in enumerate(dataloader):
     labels = labels.squeeze(0)[1:-1]
-    all_words, all_summaries, all_alphas = MODEL.infer_beam(img)
+    all_words, all_summaries, all_alphas = MODEL.infer_beam_search(img)
     for j, _ in enumerate(all_words):
         words, summaries, alphas = all_words[
             j], all_summaries[j].unsqueeze(0), all_alphas[j]

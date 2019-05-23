@@ -28,6 +28,9 @@ elif sys.argv[1] == 'restart':
     MODEL = Image2Caption()
 print('Note model parameters:\n{}'.format(MODEL.parameters))
 
+# set the mode to train
+MODEL.train()
+
 # create a logger
 WRITER = SummaryWriter()
 '''

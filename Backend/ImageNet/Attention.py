@@ -296,7 +296,7 @@ class LocalAttention2d(nn.Module):
                                      min=0, max=cols), cols)
         s_i = torch.stack([r_i[:, i] * cols + c_i[:, j]
                            for i in range(r_i.size(-1))
-                           for j in range(c_i.size(-1))], dim=1)
+                           for j in range(c_i.size(-1))], dim=1).detach()
         r_exp = 2 * torch.pow((torch.clamp(r_i - 1, min=0).float() -
                                p_x_t.unsqueeze(-1)) / (self.r_win // 2), 2)
         c_exp = 2 * torch.pow((torch.clamp(c_i - 1, min=0).float() -
@@ -373,7 +373,7 @@ class LocalAttention2d(nn.Module):
         '''The alignment method converts scores to probabilities and yields the attention weights.
         A trick is used to ensure that if the area around the center goes out of bounds,
         it does not contribute to the learnable weights and the attention weights themselves.'''
-        nan_loc = torch.isnan(q_i[..., 0])
+        nan_loc = torch.isnan(q_i[..., 0]).detach()
         q_i[nan_loc] = 0
         a_t = self.score(q_i, c_t)
         a_t[nan_loc] = -float('inf')
