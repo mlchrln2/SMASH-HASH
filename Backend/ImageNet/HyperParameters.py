@@ -7,7 +7,7 @@ OPTIONS = {
     'end_word': '<END>',  # the token to use for the end word.
     'unk_word': '<UNK>',  # the token to used for the unknown words.
     'learning_rate': 1e-4,  # the rate used to update the gradient.
-    'batch_size': 32,  # the number of batches to use for one optimizer update.
+    'batch_size': 128,  # the number of batches to use for one optimizer update.
     'num_epochs': 120,  # the number of times to train on the dataset before completing.
     'channel_size': 3,  # the size of the feature maps.
     'vocab_size': 13900,  # the size of the vocab (first run DataWriter.py).
