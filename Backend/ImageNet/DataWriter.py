@@ -11,7 +11,7 @@ import nltk
 
 # user defined modules
 from HyperParameters import OPTIONS
-from Vocabulary import word2idx
+from Vocabulary import WORD2IDX
 
 
 class AnnotationWriter(data.Dataset):
@@ -67,11 +67,11 @@ class AnnotationWriter(data.Dataset):
             idx = 0
             for k in range(max_j + 2):
                 if k == 0:
-                    idx = word2idx[self.start_word]
+                    idx = WORD2IDX[self.start_word]
                 elif k < len(sentence) + 1:
-                    idx = word2idx[sentence[k - 1]]
+                    idx = WORD2IDX[sentence[k - 1]]
                 else:
-                    idx = word2idx[self.end_word]
+                    idx = WORD2IDX[self.end_word]
                 targets[j, k] = idx
         if self.target_transform is not None:
             targets = self.target_transform(targets)
