@@ -3,6 +3,7 @@ training epoch'''
 
 # dependencies
 import gc
+import sys
 import torch
 from tensorboardX import SummaryWriter
 
@@ -34,13 +35,13 @@ def plot(pics, alps, caption, caps, fig_num):
         plt.title(caption[k])
         plt.imshow(pics)
         alpha = TO_IMG(alps[k].unsqueeze(0))
-        plt.imshow(alpha, cmap='gray', alpha=.5)
+        plt.imshow(alpha, cmap='gray', alpha=.7)
     plt.show()
     WRITER.add_figure('plot_{}'.format(fig_num), fig, fig_num, True)
     plt.close()
 
 # initialize model and loss function
-MODEL = torch.load('img_embedding_model.pth')
+MODEL = torch.load(sys.argv[1])
 # print('Note model parameters:\n{}'.format(MODEL.parameters))
 
 # set the mode to train
@@ -58,7 +59,7 @@ gc.collect()
 # inference method that tests the top-k captions for the model
 for i, (image, img, labels, lengths) in enumerate(dataloader):
     labels = labels.squeeze(0)[1:-1]
-    all_words, all_summaries, all_alphas = MODEL.infer_beam_search(img)
+    all_words, all_summaries, all_alphas = MODEL.infer_greedy(img)
     for j, _ in enumerate(all_words):
         words, summaries, alphas = all_words[
             j], all_summaries[j].unsqueeze(0), all_alphas[j]
@@ -67,5 +68,5 @@ for i, (image, img, labels, lengths) in enumerate(dataloader):
             "utf-8") for word in words]
         phrase = [IDX2WORD[str(word.item())].value.decode("utf-8")
                   for word in labels]
-        plot(image, alphas, sentence, phrase, i)
+        plot(img, alphas, sentence, phrase, i)
     print('iteration {} of {}'.format(i + 1, len(dataloader)), end='\r')
