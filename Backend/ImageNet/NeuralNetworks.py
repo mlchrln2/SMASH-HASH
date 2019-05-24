@@ -121,6 +121,41 @@ class Image2Caption(nn.Module):
             words[:batch, i] = self.decoder(out)
         return words
 
+    def model_helper(self, features, h_n, idx, k):
+        """A helper function for the beam search inference method.
+
+        Args:
+            k (int): the number of top values to select from the max
+
+        Inputs: features, h_n, idx, k
+            - **features** of shape (1,channel_size,num_x_queries,num_y_queries): tensor containing
+            all of the feature maps.
+            - **h_n** of shape(1,hidden_size): tensor containing the current hidden state in
+            consideration.
+            - **idx** of shape(1,1): tensor containing the current word in consideration.
+
+        Outputs: captions, probs, h_n, alpha
+            - **captions** of shape (beam_size): tensor containing the top-k captions predicted by
+            the model for the current path.
+            - **probs** of shape (beam_size): tensor containing the top-k log probabilities for
+            the current path.
+            - **h_n** of shape (1,hidden_size): tensor containing the next hidden state in
+            consideration.
+            - **alpha** of shape (1,num_x_queries,num_y_queries): tensor containing the weights
+            obtained from the attention layer for the current path.
+        """
+        cap = self.embedding(idx)
+        cap = self.dropout(cap)
+        feats, alpha = self.attention.infer(features, h_n)
+        z_inputs = torch.cat((feats, cap), 1)
+        h_n = self.rnn(z_inputs, h_n)
+        output = self.decoder_dropout(h_n)
+        output = self.decoder(output)
+        probs, captions = torch.topk(input=output, k=k, dim=1)
+        captions = captions.squeeze(0).detach()
+        probs = F.log_softmax(probs.squeeze(0).detach(), dim=0)
+        return captions, probs, h_n, alpha
+
     def infer_greedy(self, image):
         """Inference method for validating the model predictions using a greedy algorithm. This
         method requires the first word to be 0 (start word) and all subsequent words to be the most
@@ -155,8 +190,6 @@ class Image2Caption(nn.Module):
             alphas[:, num_words] = alpha
         alphas = alphas[:, 0].unsqueeze(
             1) if num_words == 0 else alphas[:, :num_words]
-        alphas = F.interpolate(alphas, size=(
-            image.size(2), image.size(3)), mode='nearest')
         words = words[0].unsqueeze(0) if num_words == 0 else words[
             :num_words].unsqueeze(0)
         summaries = h_n
@@ -297,39 +330,6 @@ class Image2Caption(nn.Module):
         alphas = [F.interpolate(alp.unsqueeze(0), size=(image.size(
             2), image.size(3)), mode='nearest') for alp in out_alphas]
         return words, summaries, alphas
-
-    def model_helper(self, features, h_n, idx, k):
-        """A helper function for the beam search inference method.
-
-        Args:
-            k (int): the number of top values to select from the max
-
-        Inputs: features, h_n, idx, k
-            - **features** of shape (1,channel_size,num_x_queries,num_y_queries): tensor containing
-            all of the feature maps.
-            - **h_n** of shape(1,hidden_size): tensor containing the current hidden state in
-            consideration.
-            - **idx** of shape(1,1): tensor containing the current word in consideration.
-
-        Outputs: captions, probs, h_n, alpha
-            - **captions** of shape (beam_size): tensor containing the top-k captions predicted by
-            the model for the current path.
-            - **probs** of shape (beam_size): tensor containing the top-k log probabilities for
-            the current path.
-            - **h_n** of shape (1,hidden_size): tensor containing the next hidden state in
-            consideration.
-            - **alpha** of shape (1,num_x_queries,num_y_queries): tensor containing the weights
-            obtained from the attention layer for the current path.
-        """
-        feats, alpha = self.attention.infer(features, h_n)
-        cap = self.embedding(idx)
-        z_inputs = torch.cat((feats, cap), 1)
-        h_n = self.rnn(z_inputs, h_n)
-        output = self.decoder(h_n)
-        probs, captions = torch.topk(input=output, k=k, dim=1)
-        captions = captions.squeeze(0).detach()
-        probs = F.log_softmax(probs.squeeze(0).detach(), dim=0)
-        return captions, probs, h_n, alpha
 
 
 class ImageEncoder(nn.Module):
