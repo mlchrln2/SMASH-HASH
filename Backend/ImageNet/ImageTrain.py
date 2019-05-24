@@ -55,10 +55,8 @@ for epoch in range(NUM_EPOCHS):
         loss.backward()
         MODEL.optimizer.step()
         error += loss.detach().item()
-        if (i + 1) % ITR_SAVE == 0:
-            torch.save(MODEL, 'img_embedding_model.pth')
         print('epoch {} of {} --- iteration {} of {}'.format(epoch + 1, NUM_EPOCHS,
                                                              i + 1, len(DATALOADER)),
               end='\r')
-    torch.save(MODEL, 'img_embedding_model.pth')
+    torch.save(MODEL, 'img_embedding_model_{}.pth'.format(epoch))
     WRITER.add_scalar('data/train_loss', error / len(DATALOADER), epoch)
