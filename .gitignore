@@ -105,29 +105,6 @@ venv.bak/
 
 # additional folders
 CocoDataset
-../Backend/ImageNet/ImageTest.py
-000000012966.jpg
-000000066129.jpg
-000000067987.jpg
-000000114624.jpg
-000000152354.jpg
-000000186147.jpg
-000000224020.jpg
-000000251646.jpg
-000000276336.jpg
-000000281215.jpg
-000000283534.jpg
-000000300501.jpg
-000000379188.jpg
-000000387492.jpg
-000000391200.jpg
-000000407743.jpg
-000000412755.jpg
-000000475699.jpg
-000000527979.jpg
-000000566321.jpg
-dummy-data.zip
-num_to_image_dict.h5
-test_file.h5
+ImageModels
+/Backend/ImageNet/runs
 /Backend/GraphNN/data/*
-Backend/GraphNN/data/*
