@@ -41,8 +41,10 @@ def plot(pics, alps, caption, caps, fig_num):
     plt.close()
 
 # initialize model and loss function
-CHECKPOINT = torch.load(sys.argv[1], map_location)
+CHECKPOINT = torch.load(sys.argv[1], map_location='cpu')
 MODEL = CHECKPOINT['model']
+INFERENCE = {'greedy': MODEL.infer_greedy_search, 
+             'beam': MODEL.infer_beam_search}[sys.argv[2]]
 # print('Note model parameters:\n{}'.format(MODEL.parameters))
 
 # set the mode to train
@@ -60,7 +62,7 @@ gc.collect()
 # inference method that tests the top-k captions for the model
 for i, (image, img, labels, lengths) in enumerate(dataloader):
     labels = labels.squeeze(0)[1:-1]
-    all_words, all_summaries, all_alphas = MODEL.infer_greedy(img)
+    all_words, all_summaries, all_alphas = INFERENCE(img)
     for j, _ in enumerate(all_words):
         words, summaries, alphas = all_words[
             j], all_summaries[j].unsqueeze(0), all_alphas[j]
