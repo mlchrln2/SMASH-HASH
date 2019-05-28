@@ -95,8 +95,8 @@ class Image2Caption(nn.Module):
         self.decoder = nn.Linear(in_features=self.hidden_size,
                                  out_features=self.vocab_size).to(self.device)
         self.decoder_dropout = nn.Dropout(self.drop)
-        self.criterion = nn.CrossEntropyLoss().to(self.device)
         self.softmax = nn.Softmax(1)
+        self.criterion = nn.CrossEntropyLoss().to(self.device)
         self.optimizer = torch.optim.Adam(params=self.parameters(),
                                           lr=self.learning_rate)
 
@@ -106,7 +106,8 @@ class Image2Caption(nn.Module):
         captions = self.embedding(captions)
         captions = self.dropout(captions)
         captions = captions.transpose(0, 1)
-        h_n = torch.zeros(features.size(0), self.hidden_size, device=self.device)
+        h_n = torch.zeros(features.size(
+            0), self.hidden_size, device=self.device)
         words = torch.zeros(features.size(0),
                             captions.size(0),
                             self.vocab_size,
@@ -161,7 +162,7 @@ class Image2Caption(nn.Module):
         probs = F.log_softmax(probs.squeeze(0).detach(), dim=0)
         return captions, probs, h_n, alpha
 
-    def infer_greedy(self, image):
+    def infer_greedy_search(self, image):
         """Inference method for validating the model predictions using a greedy algorithm. This
         method requires the first word to be 0 (start word) and all subsequent words to be the most
         likely words at that time step. The process terminates either when the model outputs a 1
@@ -188,15 +189,17 @@ class Image2Caption(nn.Module):
                              features.size(2), features.size(3))
         h_n = torch.zeros(features.size(0), self.hidden_size)
         for num_words in range(self.max_len):
+            idxs, _, h_n, alpha = self.model_helper(features, h_n, idxs, 1)
             if idxs.item() == 1:
                 break
-            idxs, _, h_n, alpha = self.model_helper(features, h_n, idxs, 1)
             words[num_words] = idxs
             alphas[:, num_words] = alpha
         alphas = alphas[:, 0].unsqueeze(
             1) if num_words == 0 else alphas[:, :num_words]
         words = words[0].unsqueeze(0) if num_words == 0 else words[
             :num_words].unsqueeze(0)
+        alphas = F.interpolate(alphas, size=(
+            image.size(2), image.size(3)), mode='nearest')
         summaries = h_n
         return words, summaries, alphas
 
@@ -368,16 +371,19 @@ class ImageEncoder(nn.Module):
         pretrained_net = models.vgg16(pretrained=True).features
         modules = list(pretrained_net.children())[:29]
         self.in_channels = modules[-1].in_channels
-        self.pretrained_net = nn.Sequential(*modules)
+
+        self.pretrained_net = nn.Sequential(*modules).to(self.device)
         if self.in_channels != self.channel_size:
             self.lin_map = nn.Linear(in_features=self.in_channels,
                                      out_features=self.channel_size).to(self.device)
-        self.batch_norm = nn.BatchNorm2d(num_features=modules[-1].in_channels,
+        del pretrained_net, modules
+        self.batch_norm = nn.BatchNorm2d(num_features=self.in_channels,
                                          momentum=self.momentum).to(self.device)
 
     def forward(self, image):
         with torch.no_grad():
-            image_embedding = self.pretrained_net(image).to(self.device)
+            image_embedding = self.pretrained_net(image)
+
         if self.in_channels != self.channel_size:
             image_embedding = self.lin_map(image_embedding)
         image_embedding = self.batch_norm(image_embedding)
