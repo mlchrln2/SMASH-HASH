@@ -41,7 +41,8 @@ def plot(pics, alps, caption, caps, fig_num):
     plt.close()
 
 # initialize model and loss function
-MODEL = torch.load(sys.argv[1])
+CHECKPOINT = torch.load(sys.argv[1], map_location)
+MODEL = CHECKPOINT['model']
 # print('Note model parameters:\n{}'.format(MODEL.parameters))
 
 # set the mode to train
