@@ -1,7 +1,8 @@
 '''Parameters used during the training and testing stages'''
 
 OPTIONS = {
-    'data_dir': '../../CocoDataset',  # the location of the coco dataset and caption.
+    'data_dir': '../../CocoDataset',  # the location of the coco dataset and caption
+    'model_dir': '../../ImageModels', #the location of the neural network models
     'itr_save': 6,  # the number of iterations to run before saving the model.
     'start_word': '<START>',  # the token to use for the start_word.
     'end_word': '<END>',  # the token to use for the end word.
@@ -18,5 +19,5 @@ OPTIONS = {
     'max_len': 20,  # the maximum length of an inferred caption.
     'beam_size': 10,  # the number of paths to check during the beam search.
     'momentum': 0.01, # the momentum used for the batch normalization
-    'device' : 'cpu' # indicates which device to use for training
+    'device' : 'cuda' # indicates which device to use for training (cpu or cuda)
 }
