@@ -60,7 +60,7 @@ class CocoTrain(data.Dataset):
         if self.transform is not None:
             img = self.transform(img)
         if self.normalize is not None:
-            img = self.normalize(img)
+            img = self.normalize(img).to(self.device)
         if self.target_transform is not None:
             targets = self.target_transform(targets)
         lengths = targets[-1] + 2
