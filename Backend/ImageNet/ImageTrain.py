@@ -5,7 +5,7 @@ import gc
 import sys
 import os
 import torch
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 # user defined modules
 from HyperParameters import OPTIONS
@@ -39,6 +39,7 @@ except:
     print('Training new model...')
     START_EPOCH = -1
 
+
 print('Note model parameters:\n{}'.format(MODEL.parameters))
 
 # set the mode to train
@@ -56,6 +57,8 @@ Save the model every ITR_SAVE iterations so that the program can be killed if ne
 for epoch in range(START_EPOCH + 1, NUM_EPOCHS):
     for i, (img, labels, lengths) in enumerate(TRAIN_DATA):
         gc.collect()
+        if DEVICE == 'cuda':
+            torch.cuda.empty_cache()
         MODEL.optimizer.zero_grad()
         predictions = MODEL(img, labels[:, :-1], lengths - 1)
         predictions = pack_padded_sequence(
@@ -64,10 +67,8 @@ for epoch in range(START_EPOCH + 1, NUM_EPOCHS):
             labels[:, 1:], lengths - 1, batch_first=True)[0]
         loss = MODEL.criterion(predictions, labels)
         loss.backward()
+        del img, labels, lengths, predictions, loss
         MODEL.optimizer.step()
-        del loss, labels, predictions, img, lengths
-        if DEVICE == 'cuda':
-            torch.cuda.empty_cache()
         print('epoch {} of {} --- iteration {} of {}'.format(epoch + 1, NUM_EPOCHS,
                                                              i + 1, len(TRAIN_DATA)),
               end='\r')
