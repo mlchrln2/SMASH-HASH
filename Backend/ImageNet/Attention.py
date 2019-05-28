@@ -265,33 +265,36 @@ class LocalAttention2d(nn.Module):
         when computing softmax probabilities.
     """
 
-    def __init__(self, query_size, context_size, window=(2, 2)):
+    def __init__(self, query_size, context_size, window=(2, 2), device='cpu'):
         super(LocalAttention2d, self).__init__()
         self.q_size = query_size
         self.c_size = context_size
         self.r_win = window[0]
         self.c_win = window[1]
+        self.device = device
         self.w_a = nn.Linear(in_features=self.q_size,
                              out_features=self.c_size,
-                             bias=False)
+                             bias=False).to(self.device)
         self.w_p = nn.Linear(in_features=self.c_size,
                              out_features=2,
-                             bias=False)
+                             bias=False).to(self.device)
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(1)
 
     def forward(self, q_i, c_t):
         if c_t is None:
-            c_t = q_i.new_zeros(q_i.size(0), self.c_size)
+            c_t = q_i.new_zeros(q_i.size(0), self.c_size).to(self.device)
         q_i = nn.ConstantPad2d((1, 0, 1, 0), float('nan'))(q_i)
         rows, cols = q_i.size(2), q_i.size(3)
         p_x_t, p_y_t = self.predictive_alignment(rows - 2, cols - 2, c_t)
         r_i = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch - (self.r_win // 2) + 1,
-                                                               p_batch + (self.r_win + 1) // 2 + 1)
+                                                               p_batch + (self.r_win + 1) // 2 + 1,
+                                                               device=self.device)
                                                   for p_batch in torch.round(p_x_t).long()]),
                                      min=0, max=rows), rows)
         c_i = torch.fmod(torch.clamp(torch.stack([torch.arange(p_batch - (self.c_win // 2) + 1,
-                                                               p_batch + (self.c_win + 1) // 2 + 1)
+                                                               p_batch + (self.c_win + 1) // 2 + 1,
+                                                               device=self.device)
                                                   for p_batch in torch.round(p_y_t).long()]),
                                      min=0, max=cols), cols)
         s_i = torch.stack([r_i[:, i] * cols + c_i[:, j]

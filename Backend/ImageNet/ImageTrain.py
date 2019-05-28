@@ -9,12 +9,14 @@ from tensorboardX import SummaryWriter
 # user defined modules
 from HyperParameters import OPTIONS
 from NeuralNetworks import Image2Caption
-from DataLoader import TRAIN_LOADER as DATALOADER
+from DataLoader import TRAIN_LOADER as TRAIN_DATA
+from DataLoader import VAL_LOADER as VAL_DATA
 from pack_padded_sequence import pack_padded_sequence
 
 # load in hyper-parameters from python file
 NUM_EPOCHS = OPTIONS['num_epochs']
 ITR_SAVE = OPTIONS['itr_save']
+DEVICE = OPTIONS['device']
 
 # initialize model and loss function
 MODEL = None
@@ -40,12 +42,12 @@ WRITER.add_graph(MODEL,
 
 '''train model and update the weights using the pack padded outputs with the pack padded labels.
 Save the model every ITR_SAVE iterations so that the program can be killed if needed.'''
-
 for epoch in range(NUM_EPOCHS):
-    error = 0
-    for i, (img, labels, lengths) in enumerate(DATALOADER):
-        gc.collect()
+    for i, (img, labels, lengths) in enumerate(TRAIN_DATA):
         MODEL.optimizer.zero_grad()
+        if DEVICE == 'cuda':
+            torch.cuda.empty_cache()
+        gc.collect()
         predictions = MODEL(img, labels[:, :-1], lengths - 1)
         predictions = pack_padded_sequence(
             predictions, lengths - 1, batch_first=True)[0]
@@ -54,9 +56,20 @@ for epoch in range(NUM_EPOCHS):
         loss = MODEL.criterion(predictions, labels)
         loss.backward()
         MODEL.optimizer.step()
-        error += loss.detach().item()
+        del loss, predictions, labels, img, lengths
         print('epoch {} of {} --- iteration {} of {}'.format(epoch + 1, NUM_EPOCHS,
-                                                             i + 1, len(DATALOADER)),
+                                                             i + 1, len(TRAIN_DATA)),
               end='\r')
     torch.save(MODEL, 'img_embedding_model_{}.pth'.format(epoch))
-    WRITER.add_scalar('data/train_loss', error / len(DATALOADER), epoch)
+    '''
+    error = 0
+    for i, (img, labels, lengths) in enumerate(VAL_DATA):
+        predictions = MODEL(img, labels[:, :-1], lengths - 1)
+        predictions = pack_padded_sequence(
+            predictions, lengths - 1, batch_first=True)[0]
+        labels = pack_padded_sequence(
+            labels[:, 1:], lengths - 1, batch_first=True)[0]
+        loss = MODEL.criterion(predictions, labels)
+        error += loss.detach().item()
+    WRITER.add_scalar('data/val_loss', error / len(VAL_DATA), epoch)
+    '''

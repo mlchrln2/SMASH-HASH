@@ -79,18 +79,21 @@ class Image2Caption(nn.Module):
         self.window = OPTIONS['window']
         self.max_len = OPTIONS['max_len']
         self.beam_size = OPTIONS['beam_size']
+        self.device = OPTIONS['device']
         self.image_encoder = ImageEncoder(channel_size=self.channel_size,
-                                          momentum=self.momentum)
+                                          momentum=self.momentum,
+                                          device=self.device)
         self.embedding = nn.Embedding(num_embeddings=self.vocab_size,
-                                      embedding_dim=self.embed_size)
+                                      embedding_dim=self.embed_size).to(self.device)
         self.dropout = nn.Dropout(self.drop)
         self.attention = LocalAttention2d(query_size=self.channel_size,
                                           context_size=self.hidden_size,
-                                          window=self.window)
+                                          window=self.window,
+                                          device=self.device)
         self.rnn = nn.GRUCell(input_size=self.channel_size + self.embed_size,
-                              hidden_size=self.hidden_size)
+                              hidden_size=self.hidden_size).to(self.device)
         self.decoder = nn.Linear(in_features=self.hidden_size,
-                                 out_features=self.vocab_size)
+                                 out_features=self.vocab_size).to(self.device)
         self.decoder_dropout = nn.Dropout(self.drop)
         self.optimizer = torch.optim.Adam(params=self.parameters(),
                                           lr=self.learning_rate)
@@ -98,14 +101,16 @@ class Image2Caption(nn.Module):
         self.softmax = nn.Softmax(1)
 
     def forward(self, images, captions, lengths):
-        features = images
-        #features = self.image_encoder(images)
+        #features = images
+        features = self.image_encoder(images)
         captions = self.embedding(captions)
         captions = self.dropout(captions)
         captions = captions.transpose(0, 1)
-        h_n = torch.zeros(features.size(0), self.hidden_size)
+        h_n = torch.zeros(features.size(0), self.hidden_size, device=self.device)
         words = torch.zeros(features.size(0),
-                            captions.size(0), self.vocab_size)
+                            captions.size(0),
+                            self.vocab_size,
+                            device=self.device)
         batch = lengths.size(0)
         batch_item = lengths[batch - 1].detach().item()
         for i, cap in enumerate(captions):
@@ -174,8 +179,8 @@ class Image2Caption(nn.Module):
             - **alphas** of shape (1,max_len,x_dim,y_dim): tensor containing the weights obtained
             from the attention layer upsampled to the dimension of the input image.
         """
-        features = image
-        #features = self.image_encoder(image)
+        #features = image
+        features = self.image_encoder(image)
         idxs = torch.zeros(features.size(0), dtype=torch.long)
         num_words = 0
         words = torch.zeros(self.max_len, dtype=torch.long)
@@ -218,8 +223,8 @@ class Image2Caption(nn.Module):
             image.
         """
         # encode image
-        features = image
-        #features = self.image_encoder(image)
+        #features = image
+        features = self.image_encoder(image)
         # the first idx/word is 0 (start_word)
         idxs = torch.zeros(features.size(0), dtype=torch.long)
         # there are currently no words stored
@@ -355,23 +360,26 @@ class ImageEncoder(nn.Module):
         - **batch_norm** with parameters (channel_size,momentum): the 2d batch normalization layer.
     """
 
-    def __init__(self, channel_size, momentum):
+    def __init__(self, channel_size, momentum, device):
         super(ImageEncoder, self).__init__()
         self.channel_size = channel_size
         self.momentum = momentum
+        self.device = device
         pretrained_net = models.vgg16(pretrained=True).features
         modules = list(pretrained_net.children())[:29]
         self.in_channels = modules[-1].in_channels
-        self.pretrained_net = nn.Sequential(*modules)
+        self.pretrained_net = nn.Sequential(*modules).to(self.device)
         if self.in_channels != self.channel_size:
             self.lin_map = nn.Linear(in_features=self.in_channels,
-                                     out_features=self.channel_size)
+                                     out_features=self.channel_size).to(self.device)
         self.batch_norm = nn.BatchNorm2d(num_features=modules[-1].in_channels,
-                                         momentum=self.momentum)
+                                         momentum=self.momentum).to(self.device)
 
     def forward(self, image):
         with torch.no_grad():
-            image_embedding = self.pretrained_net(image).detach()
+            image_embedding = self.pretrained_net(image)
+            if self.device == 'cuda':
+                torch.cuda.empty_cache()
         if self.in_channels != self.channel_size:
             image_embedding = self.lin_map(image_embedding)
         image_embedding = self.batch_norm(image_embedding)
