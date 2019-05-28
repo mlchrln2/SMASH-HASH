@@ -95,10 +95,10 @@ class Image2Caption(nn.Module):
         self.decoder = nn.Linear(in_features=self.hidden_size,
                                  out_features=self.vocab_size).to(self.device)
         self.decoder_dropout = nn.Dropout(self.drop)
+        self.criterion = nn.CrossEntropyLoss().to(self.device)
+        self.softmax = nn.Softmax(1)
         self.optimizer = torch.optim.Adam(params=self.parameters(),
                                           lr=self.learning_rate)
-        self.criterion = nn.CrossEntropyLoss()
-        self.softmax = nn.Softmax(1)
 
     def forward(self, images, captions, lengths):
         #features = images
@@ -368,7 +368,7 @@ class ImageEncoder(nn.Module):
         pretrained_net = models.vgg16(pretrained=True).features
         modules = list(pretrained_net.children())[:29]
         self.in_channels = modules[-1].in_channels
-        self.pretrained_net = nn.Sequential(*modules).to(self.device)
+        self.pretrained_net = nn.Sequential(*modules)
         if self.in_channels != self.channel_size:
             self.lin_map = nn.Linear(in_features=self.in_channels,
                                      out_features=self.channel_size).to(self.device)
@@ -377,9 +377,7 @@ class ImageEncoder(nn.Module):
 
     def forward(self, image):
         with torch.no_grad():
-            image_embedding = self.pretrained_net(image)
-            if self.device == 'cuda':
-                torch.cuda.empty_cache()
+            image_embedding = self.pretrained_net(image).to(self.device)
         if self.in_channels != self.channel_size:
             image_embedding = self.lin_map(image_embedding)
         image_embedding = self.batch_norm(image_embedding)
