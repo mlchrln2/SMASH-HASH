@@ -35,7 +35,7 @@ class CocoTrain(data.Dataset):
         self.coco = COCO(annFile)
         self.ids = list(self.coco.imgs.keys())
         self.filename = filename
-        self.coco_dataset = h5py.File(self.filename, 'r')
+        self.coco_dataset = h5py.File(self.filename, 'r', libver='latest', swmr=True)
         self.transform = transform
         self.normalize = normalize
         self.target_transform = target_transform
@@ -60,7 +60,7 @@ class CocoTrain(data.Dataset):
         if self.transform is not None:
             img = self.transform(img)
         if self.normalize is not None:
-            img = self.normalize(img).to(self.device)
+            img = self.normalize(img)
         if self.target_transform is not None:
             targets = self.target_transform(targets)
         lengths = targets[-1] + 2
@@ -231,6 +231,10 @@ TRAIN_TRANSFORM = transforms.Compose([
 ])
 
 TEST_TRANSFORM = transforms.Compose([
+    # smaller edge of image resized to 256
+    transforms.Resize(256),
+    # get 224x224 crop from random location
+    transforms.CenterCrop(224),
     # convert the PIL Image to a tensor
     transforms.ToTensor(),
 ])
@@ -240,9 +244,7 @@ VAL_TRANSFORM = transforms.Compose([
     # smaller edge of image resized to 256
     transforms.Resize(256),
     # get 224x224 crop from random location
-    transforms.RandomCrop(224),
-    # horizontally flip image with probability=0.5
-    transforms.RandomHorizontalFlip(),
+    transforms.CenterCrop(224),
     # convert the PIL Image to a tensor
     transforms.ToTensor(),
 ])
