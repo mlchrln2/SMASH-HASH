@@ -31,11 +31,13 @@ class AnnotationWriter(data.Dataset):
         self.root = os.path.expanduser(root)
         self.coco = COCO(annFile)
         self.filename = filename
-        self.coco_dataset = h5py.File(self.filename, 'w')
+        self.coco_dataset = h5py.File(self.filename, 'w', libver='latest')
+        self.coco_dataset.swmr_mode = True
         self.ids = list(self.coco.imgs.keys())
         self.target_transform = target_transform
         self.start_word = OPTIONS['start_word']
         self.end_word = OPTIONS['end_word']
+        self.unk_word = OPTIONS['unk_word']
 
     def __getitem__(self, index):
         """
@@ -69,7 +71,10 @@ class AnnotationWriter(data.Dataset):
                 if k == 0:
                     idx = WORD2IDX[self.start_word]
                 elif k < len(sentence) + 1:
-                    idx = WORD2IDX[sentence[k - 1]]
+                    if sentence[k - 1] in WORD2IDX:
+                        idx = WORD2IDX[sentence[k - 1]]
+                    else:
+                        idx = WORD2IDX[self.unk_word]
                 else:
                     idx = WORD2IDX[self.end_word]
                 targets[j, k] = idx
@@ -90,12 +95,26 @@ DATA_DIR = OPTIONS['data_dir']
 DATASET = AnnotationWriter(root='{}/train2017/'.format(DATA_DIR),
                            annFile='{}/annotations/captions_train2017.json'.format(
                                DATA_DIR),
-                           filename='{}/coco_annotations.h5'.format(DATA_DIR),
+                           filename='{}/train_captions.h5'.format(DATA_DIR),
                            )
 gc.collect()
 i = 0
 # write data and captions
 for i, _ in enumerate(DATASET):
-    print('annotation {} of {} loaded'.format(i, len(DATASET)), end='\r')
-print('annotation {} of {} loaded'.format(i, len(DATASET)))
+    print('annotation {} of {} loaded from training set'.format(i + 1, len(DATASET)), end='\r')
+print('annotation {} of {} loaded from training set'.format(i + 1, len(DATASET)))
+print('complete')
+
+# load data and captions in batches
+DATASET = AnnotationWriter(root='{}/val2017/'.format(DATA_DIR),
+                           annFile='{}/annotations/captions_val2017.json'.format(
+                               DATA_DIR),
+                           filename='{}/val_captions.h5'.format(DATA_DIR),
+                           )
+gc.collect()
+i = 0
+# write data and captions
+for i, _ in enumerate(DATASET):
+    print('annotation {} of {} loaded from validation set'.format(i + 1, len(DATASET)), end='\r')
+print('annotation {} of {} loaded from validation set'.format(i + 1, len(DATASET)))
 print('complete')
