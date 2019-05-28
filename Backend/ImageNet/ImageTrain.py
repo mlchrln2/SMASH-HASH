@@ -23,7 +23,7 @@ DEVICE = OPTIONS['device']
 # initialize model and loss function
 MODEL = None
 
-#create model directory if it does not currently exist
+# create model directory if it does not currently exist
 if not os.path.isdir(MODEL_DIR):
     os.makedirs(MODEL_DIR)
 
