@@ -159,30 +159,32 @@ class CocoVal(data.Dataset):
 
     def __getitem__(self, index):
         """
-        Args:
+        Inputs:
             index (int): Index
 
-        Returns:
-            tuple: Tuple (img, captions, lengths). lengths is the size of a given caption
-            and image is the transformed and normalized image
+        Outputs:
+            tuple: Tuple (norm_image, img, captions, lengths).
+            lengths is the size of a given caption. norm_img is used for model inference while
+            img is used for visualization.
         """
         coco = self.coco
         img_id = self.ids[index]
         path = coco.loadImgs(img_id)[0]['file_name']
         img = Image.open(os.path.join(self.root, path)).convert('RGB')
         target_loc = self.coco_dataset[str(index)]
-        rand_idx = torch.randint(target_loc.shape[0], size=(1,)).item()
+        rand_idx = 0
         targets = torch.from_numpy(target_loc[rand_idx].astype(int))
+        norm_img = img
         if self.transform is not None:
             img = self.transform(img)
         if self.normalize is not None:
-            img = self.normalize(img)
+            norm_img = self.normalize(img.clone())
         if self.target_transform is not None:
             targets = self.target_transform(targets)
         lengths = targets[-1] + 2
         lengths.requires_grad = False
         captions = targets[:(lengths)]
-        return img, captions, lengths
+        return norm_img, img, captions, lengths
 
     def __len__(self):
         return len(self.ids)
@@ -241,10 +243,6 @@ TEST_TRANSFORM = transforms.Compose([
 
 # transforms for data
 VAL_TRANSFORM = transforms.Compose([
-    # smaller edge of image resized to 256
-    transforms.Resize(256),
-    # get 224x224 crop from random location
-    transforms.CenterCrop(224),
     # convert the PIL Image to a tensor
     transforms.ToTensor(),
 ])
@@ -310,6 +308,5 @@ TEST_LOADER = DataLoader(dataset=TEST_DATASET,
 # 1 batch data loader
 VAL_LOADER = DataLoader(dataset=VAL_DATASET,
                         batch_size=1,
-                        collate_fn=collate,
                         shuffle=False,
                         drop_last=True)
