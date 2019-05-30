@@ -1,5 +1,4 @@
-'''This module defines the image captioning neural networks for the COCO Dataset
-and the MNIST Dataset'''
+'''This module defines the image captioning neural networks for the COCO Dataset'''
 
 # dependencies
 import torch
@@ -36,6 +35,7 @@ class Image2Caption(nn.Module):
         window (int): the window used for the 2d local attention model.
         max_len (int): the maximum length of an inferred caption.
         beam_size (int): the number of paths to check during the beam search.
+        device (string): the device to train the model on either 'cpu' or 'cuda' 
 
     Inputs: images, captions, lengths
         - **images** of shape (batch,img_channels,x_dim,y_dim): tensor containing all
@@ -51,20 +51,22 @@ class Image2Caption(nn.Module):
         captions predicted by the model.
 
     Attributes: image_encoder, embedding, dropout, attention, rnn, decoder, decoder_dropout
-        - **image_encoder** with parameters (channel_size, momentum): the feature maps extracted
-        from the image data using the pretrained vgg16 model.
+        - **image_encoder** with parameters (channel_size, momentum, device): the feature maps
+        extracted from the image data using the pretrained vgg16 model.
         - **embedding** with parameters (vocab_size,embed_size): the embedding layer mapping indices
         to embeddings.
         - **dropout** with parameter (drop): the dropout layer for the captions to prevent
         overfitting.
-        - **attention** with parameters (channel_size, hidden_size, window): the 2d local attention
-        used to attend on a portion of an image and weigh the importance of each subregion.
+        - **attention** with parameters (channel_size, hidden_size, window, device): the 2d local
+        attention used to attend on a portion of an image and weigh the importance of each subregion.
         - **rnn** with parameters (channel_size+embed_size,hidden_size): the recurrent layer used to
         learn sequential information obtained from the network.
         - **decoder** with parameters (hidden_size,vocab_size): the linear layer used to decode the
         captions from the rnn output.
         - **decoder_dropout** with parameter (drop): the dropout layer for the rnn outputs used to
         prevent overfitting.
+        - **criterion** with void parameter: the loss function to use during training.
+        - **optimizer** with parameters (param,learning_rate): the optimizer to use during training.
     """
 
     def __init__(self):
@@ -151,12 +153,10 @@ class Image2Caption(nn.Module):
             obtained from the attention layer for the current path.
         """
         cap = self.embedding(idx)
-        cap = self.dropout(cap)
         feats, alpha = self.attention.infer(features, h_n)
         z_inputs = torch.cat((feats, cap), 1)
         h_n = self.rnn(z_inputs, h_n)
-        output = self.decoder_dropout(h_n)
-        output = self.decoder(output)
+        output = self.decoder(h_n)
         probs, captions = torch.topk(input=output, k=k, dim=1)
         captions = captions.squeeze(0).detach()
         probs = F.log_softmax(probs.squeeze(0).detach(), dim=0)
@@ -346,6 +346,8 @@ class ImageEncoder(nn.Module):
 
     Args:
         channel_size (int): the size of the output channel.
+        momentum (float): the momentum for batch normalization
+        device (string): the device to train the model on either 'cpu' or 'cuda' 
 
     Inputs: image
         - **image** of shape (batch,img_channels,x_dim,y_dim): tensor containing all of the images
@@ -406,41 +408,4 @@ class MNISTEncoder(nn.Module):
 
     def forward(self, x):
         x = self.encoder(x)
-        return x
-
-
-class MNISTDecoder(nn.Module):
-    '''Sample decoder network testing on MNIST'''
-
-    def __init__(self):
-        super(MNISTDecoder, self).__init__()
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 3, stride=2),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),
-            nn.Tanh()
-        )
-
-    def forward(self, x):
-        x = self.decoder(x)
-        return x
-
-
-class MNISTAutoencoder(nn.Module):
-    '''Sample autoencoder network testing on MNIST'''
-
-    def __init__(self):
-        super(MNISTAutoencoder, self).__init__()
-        self.learning_rate = OPTIONS['learning_rate']
-        self.encoder = MNISTEncoder()
-        self.decoder = MNISTDecoder()
-        self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate,
-                                          weight_decay=1e-5)
-
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
         return x
