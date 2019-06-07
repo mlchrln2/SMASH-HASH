@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from torchvision.transforms import ToPILImage
 
 # user defined modules
+from HyperParameters import OPTIONS
 from DataLoader import VAL_LOADER as dataloader
 from DataLoader import IDX2WORD
 
@@ -40,6 +41,9 @@ def plot(pics, alps, caption, caps, fig_num):
     WRITER.add_figure('plot_{}'.format(fig_num), fig, fig_num, True)
     plt.close()
 
+# number of results to display
+num_results = OPTIONS['num_results']
+
 # initialize model and loss function
 CHECKPOINT = torch.load(sys.argv[1], map_location='cpu')
 MODEL = CHECKPOINT['model']
@@ -63,10 +67,10 @@ gc.collect()
 for i, (image, img, labels, lengths) in enumerate(dataloader):
     labels = labels.squeeze(0)[1:-1]
     all_words, all_summaries, all_alphas = INFERENCE(img)
+    all_words = all_words[:num_results]
     for j, _ in enumerate(all_words):
         words, summaries, alphas = all_words[
             j], all_summaries[j].unsqueeze(0), all_alphas[j]
-        print(words.size(), summaries.size(), alphas.size())
         sentence = [IDX2WORD[str(word.item())].value.decode(
             "utf-8") for word in words]
         phrase = [IDX2WORD[str(word.item())].value.decode("utf-8")

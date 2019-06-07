@@ -227,6 +227,7 @@ class Image2Caption(nn.Module):
         """
         # encode image
         #features = image
+        self.beam_size = OPTIONS['beam_size']
         features = self.image_encoder(image)
         # the first idx/word is 0 (start_word)
         idxs = torch.zeros(features.size(0), dtype=torch.long)
@@ -261,13 +262,13 @@ class Image2Caption(nn.Module):
         while num_words < self.max_len:
             # pair the caption with its respective confidence for the current
             # iteration
-            for i, (cap, prob) in enumerate(zip(captions, probs)):
+            for i, (cap, prob) in enumerate(zip(captions, probs*num_words)):
                 # a path is terminated if it ended with the end_word
                 if cap == 1 and len(words) != self.beam_size:
                     # append the terminated path characteristics to the word
                     # list
-                    words.append(paths[:num_words, i])
-                    out_alphas.append(alphas[:num_words, i])
+                    words.append(paths[:(num_words-1), i])
+                    out_alphas.append(alphas[:(num_words-1), i])
                     out_hn.append(h_n[:, i])
                     if len(words) == self.beam_size:
                         done_flag = True
@@ -282,7 +283,7 @@ class Image2Caption(nn.Module):
                     features, h_n[:, i], cap.unsqueeze(0), self.beam_size)
                 # add the log probabilities of the current path and branches to
                 # obtain the most likely next path
-                curr_probs = prob + curr_probs
+                curr_probs = (prob + curr_probs)/(num_words+1)
                 # for every branch get the caption and the probability of
                 # taking that branch
                 for curr_c, curr_p in zip(curr_captions, curr_probs):

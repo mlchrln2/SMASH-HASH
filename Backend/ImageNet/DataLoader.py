@@ -243,6 +243,10 @@ TEST_TRANSFORM = transforms.Compose([
 
 # transforms for data
 VAL_TRANSFORM = transforms.Compose([
+    # smaller edge of image resized to 256
+    transforms.Resize(256),
+    # get 224x224 crop from random location
+    transforms.CenterCrop(224),
     # convert the PIL Image to a tensor
     transforms.ToTensor(),
 ])
