@@ -103,3 +103,9 @@ VAL_DATASET = CocoVal(root='{}/val2017/'.format(DATA_DIR),
                       filename='{}/val_captions.h5'.format(DATA_DIR),
                       transform=VAL_TRANSFORM,
                       normalize=VAL_NORMALIZE)
+
+# 1 batch data loader
+VAL_LOADER = DataLoader(dataset=VAL_DATASET,
+                        batch_size=1,
+                        shuffle=False,
+                        drop_last=True)
