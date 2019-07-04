@@ -16,6 +16,13 @@ ImageNet: Image Captioning Network
 ================================================
 The captioning network first encodes the image using the VGG16 pretrained network and then applies a 2D Attention layer over the encoded image. The 2D Attention layer invented for the purposes of this project is an adapted form of [Luong self-attention](https://arxiv.org/pdf/1508.04025.pdf). The 2D Attention layer extends the reach of Luong self-attention to problems in computer vision and instead introduces an image centroid with a gaussian window around that centroid. Captions are created by passing the output of the attention layer and the previous word in the caption through an RNN and mapping the results to word indices. To see the results of the model or to setup the environment for development purposes move into the [Backend/ImageNet](https://github.com/mlchrln2/Smash-Hash/tree/master/Backend/ImageNet) directory and follow the instruction below.
 
+Parameter Setup:
+------------
+``` bash
+# Edit this file to toggle hyperparameters:
+python3 HyperParameters.py
+```
+
 Demonstrations:
 ------------
 ```bash
@@ -28,13 +35,6 @@ Data Preparation (for development):
 ```bash
 # To create data files for faster training and validation:
 python3 DataWriter.py
-```
-
-Parameter Setup (for development):
-------------
-``` bash
-# Edit this file to toggle hyperparameters:
-python3 HyperParameters.py
 ```
 
 Training Setup (for development):
