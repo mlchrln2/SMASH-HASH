@@ -1,6 +1,6 @@
 Smash-Hash: Image Recommendation Network
 ================================================
-A two part neural network that first captions an image and then uses the caption embeddings to recommend similar images on a graph. This project is still in development and needs minor improvements to the captioning network and reformulation of the Graphical Convolution Network.
+A two part neural network that first captions an image and then uses the caption embeddings to recommend similar images on a graph. This project is still in development and needs minor improvements to the captioning network and a reformulation of the Graphical Convolution Network.
 
 Dependencies:
 ------------
@@ -14,7 +14,14 @@ Dependencies:
 
 ImageNet: Image Captioning Network
 ================================================
-The captioning network first encodes the image using the VGG16 pretrained network and then applies a 2D Attention layer over the encoded image. The 2D Attention layer invented for the purposes of this project is an adapted form of [Luong self-attention](https://arxiv.org/pdf/1508.04025.pdf). The 2D Attention layer extends the reach of Luong self-attention to problems in computer vision and instead introduces an image centroid with a gaussian window around that centroid.
+The captioning network first encodes the image using the VGG16 pretrained network and then applies a 2D Attention layer over the encoded image. The 2D Attention layer invented for the purposes of this project is an adapted form of [Luong self-attention](https://arxiv.org/pdf/1508.04025.pdf). The 2D Attention layer extends the reach of Luong self-attention to problems in computer vision and instead introduces an image centroid with a gaussian window around that centroid. To see the results of the model or to setup the environment for development purposes move into the Backend/ImageNet directory and follow the instruction below.
+
+Demonstrations:
+------------
+```bash
+# Check the jupyter notebook for some intermediate results:
+jupyter notebook ImageNetDemo.ipynb
+```
 
 Data Preparation (for development):
 ------------
@@ -48,10 +55,4 @@ python3 ImageVal.py /path/to/file greedy
 
 # To check the effectiveness of the model with the beam search algorithm:
 python3 ImageVal.py /path/to/file beam
-```
-Demonstrations:
-------------
-```bash
-# Check the jupyter notebook for some intermediate results:
-jupyter notebook ImageNetDemo.ipynb
 ```
