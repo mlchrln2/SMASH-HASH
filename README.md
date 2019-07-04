@@ -1,6 +1,6 @@
 Smash-Hash: Image Recommendation Network
 ================================================
-A two part neural network that first captions an image and then uses the caption embedding to recommend similar images on a graph. This project is still in development and needs minor improvements to the captioning network and reformulation of the Graphical Convolution Network.
+A two part neural network that first captions an image and then uses the caption embeddings to recommend similar images on a graph. This project is still in development and needs minor improvements to the captioning network and reformulation of the Graphical Convolution Network.
 
 Dependencies:
 ------------
