@@ -1,6 +1,6 @@
 Smash-Hash: Image Recommendation Network
 ================================================
-Image Recommendation Network that captions images and then recommends similar images with similar captions to the user. This project is still in development and needs minor improvements to the captioning network and reformulation of the Graphical Convolution Network.
+A two part network that first captions an image and then uses the caption embedding to recommend similar images on a graph. This project is still in development and needs minor improvements to the captioning network and reformulation of the Graphical Convolution Network.
 
 Dependencies:
 ------------
@@ -42,6 +42,9 @@ python3 ImageTrain.py /path/to/file
 Model Validation:
 ------------
 ```bash
-# To judge the effectiveness of the model:
+# To check the effectiveness of the model with the greedy search:
 python3 ImageVal.py /path/to/file greedy
+
+# To check the effectiveness of the model with the beam search
+python3 ImageVal.py /path/to/file beam
 ```
