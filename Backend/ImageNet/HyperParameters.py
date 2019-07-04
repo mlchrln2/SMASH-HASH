@@ -17,7 +17,7 @@ OPTIONS = {
     'hidden_size': 512,  # the output size of the rnn layer.
     'window': (5, 5),  # the window used for the 2d local attention model.
     'max_len': 20,  # the maximum length of an inferred caption.
-    'beam_size': 10,  # the number of paths to check during the beam search.
+    'beam_size': 100,  # the number of paths to check during the beam search.
     'num_results': 5, # the top n results to display for the beam search algorithm
     'momentum': 0.01, # the momentum used for the batch normalization
     'device' : 'cuda' # indicates which device to use for training (cpu or cuda)

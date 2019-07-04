@@ -1,3 +1,18 @@
+"""This module is used to load the validation dataset for MS COCO Captions demo"""
+
+import os
+import os.path
+from torchvision import transforms
+import torch
+import torch.utils.data as data
+from torch.utils.data import DataLoader
+import torch.nn as nn
+import h5py
+from PIL import Image
+
+# user defined modules
+from HyperParameters import OPTIONS
+
 class CocoVal(data.Dataset):
     """MS Coco Captions Validation Dataset.
 
@@ -77,6 +92,9 @@ VAL_NORMALIZE = transforms.Compose([
     transforms.Normalize((0.485, 0.456, 0.406),      # normalize image for pre-trained model
                          (0.229, 0.224, 0.225))
 ])
+
+# load the idx2word dictionary
+IDX2WORD = h5py.File('{}/idx2word.h5'.format(DATA_DIR), 'r')
 
 VAL_DATASET = CocoVal(root='{}/val2017/'.format(DATA_DIR),
                       # load data and captions in batches

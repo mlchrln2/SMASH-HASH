@@ -5,10 +5,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
-from Attention import LocalAttention2d
 
 # user defined modules
 from HyperParameters import OPTIONS
+from Attention import LocalAttention2d
 
 
 class Image2Caption(nn.Module):
