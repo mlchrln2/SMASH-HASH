@@ -4,13 +4,13 @@ A two part network that first captions an image and then uses the caption embedd
 
 Dependencies:
 ------------
-* torch
-* torchvision
-* tensorboardX
-* nltk
-* h5py
-* PIL
-* gc
+* [torch - 1.1.0](https://pytorch.org/)
+* [torchvision - 0.3.0](https://pytorch.org/)
+* [tensorboardX - 1.7](https://pypi.org/project/tensorboardX/)
+* [nltk - 3.4.1](https://pypi.org/project/nltk/)
+* [h5py - 2.9.0](https://pypi.org/project/h5py/)
+* [PIL - 6.0.0](https://pypi.org/project/Pillow/2.2.1/)
+* [pycocotools - 2.0.0](https://pypi.org/project/pycocotools/)
 
 ImageNet: Image Captioning Network
 ================================================
