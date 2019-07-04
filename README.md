@@ -9,7 +9,7 @@ Dependencies:
 * [tensorboardX - 1.7](https://pypi.org/project/tensorboardX/)
 * [nltk - 3.4.1](https://pypi.org/project/nltk/)
 * [h5py - 2.9.0](https://pypi.org/project/h5py/)
-* [PIL - 6.0.0](https://pypi.org/project/Pillow/2.2.1/)
+* [PIL - 6.0.0](https://pypi.org/project/Pillow/)
 * [pycocotools - 2.0.0](https://pypi.org/project/pycocotools/)
 
 ImageNet: Image Captioning Network
