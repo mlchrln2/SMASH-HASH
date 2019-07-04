@@ -14,6 +14,7 @@ Dependencies:
 
 ImageNet: Image Captioning Network
 ================================================
+The captioning network first encodes the image using the VGG16 pretrained network and then applies a 2D Attention layer over the encoded image. The 2D Attention layer invented for the purposes of this project is an adapted form of Luong self-attention. The 2D Attention layer extends the reach of Luong self-attention to 2 dimensions making it possible to query images in addition to phrases in NLP. The output from the 2D Attention layer is then concatenated with the previous word caption and fed into an RNN to produce the next most likely word in the caption. The process ends when the 'END' token is obtained and the caption, attention weights, and the encoded sentence are returned.
 
 Data Preparation (for development):
 ------------
