@@ -39,7 +39,7 @@ python3 ImageTrain.py
 python3 ImageTrain.py /path/to/file
 ```
 
-Model Validation:
+Model Validation (for development):
 ------------
 ```bash
 # To check the effectiveness of the model with the greedy search algorithm:
@@ -47,4 +47,10 @@ python3 ImageVal.py /path/to/file greedy
 
 # To check the effectiveness of the model with the beam search algorithm:
 python3 ImageVal.py /path/to/file beam
+```
+Demonstrations:
+------------
+```bash
+# Check the jupyter notebook for some intermediate results:
+jupyter notebook ImageNetDemo.ipynb
 ```
